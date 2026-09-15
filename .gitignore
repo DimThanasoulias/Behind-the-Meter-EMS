@@ -1,0 +1,48 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Teamwork Agent working directories and test cache
+.agents/
+.coverage
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+
+# Databases and local run data
+*.db
+*.sqlite
+*.sqlite3
+ems.db
+ems.db-wal
+ems.db-shm
+
+# PlatformIO & Embedded builds
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# IDEs & OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Secrets & Local Configurations
+.env
+.env.local
+*.pem
+*.key

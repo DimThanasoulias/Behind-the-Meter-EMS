@@ -1,0 +1,268 @@
+# Behind-the-Meter EMS — REST API Reference
+
+The Behind-the-Meter Energy Management System (EMS) exposes a high-performance RESTful API powered by **FastAPI**. It handles real-time 3-phase telemetry ingestion, dynamic tariff calculations, facility status monitoring, and historical spend queries.
+
+Interactive OpenAPI documentation (Swagger UI) is available at:
+`http://localhost:8000/docs` or `http://localhost:8000/redoc`
+
+---
+
+## Base URL
+```
+http://localhost:8000/api/v1
+```
+
+---
+
+## Authentication & Headers
+- **Content-Type:** `application/json`
+- **Accept:** `application/json`
+- *(Optional Production Mode)* `X-API-Key: <facility_secret_key>`
+
+---
+
+## 1. Telemetry Ingestion
+
+### `POST /api/v1/telemetry`
+Ingests real-time 3-phase electrical readings from ESP32 microcontrollers or the commercial load simulator. Validates electrical invariants ($|P_{tot} - \sum P_i| \le 0.05\text{ kW}$) and triggers immediate peak-hour breach evaluation.
+
+#### Request Body
+```json
+{
+  "device_id": "esp32-ems-001",
+  "facility_id": "bakery-central-athens",
+  "timestamp": "2026-09-14T15:30:00Z",
+  "phases": {
+    "L1": {
+      "voltage_v": 230.2,
+      "current_a": 26.4,
+      "active_power_kw": 5.95,
+      "apparent_power_kva": 6.08,
+      "power_factor": 0.98
+    },
+    "L2": {
+      "voltage_v": 229.8,
+      "current_a": 25.8,
+      "active_power_kw": 5.82,
+      "apparent_power_kva": 5.93,
+      "power_factor": 0.98
+    },
+    "L3": {
+      "voltage_v": 231.0,
+      "current_a": 27.1,
+      "active_power_kw": 6.13,
+      "apparent_power_kva": 6.26,
+      "power_factor": 0.98
+    }
+  },
+  "total_active_power_kw": 17.90,
+  "total_apparent_power_kva": 18.27,
+  "system_power_factor": 0.98,
+  "cumulative_energy_kwh": 142.50,
+  "grid_frequency_hz": 50.01,
+  "wifi_rssi_dbm": -62
+}
+```
+
+#### Field Specifications
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `device_id` | string | Yes | Unique hardware identifier for the ESP32 meter. |
+| `facility_id` | string | Yes | Foreign key to registered facility (e.g. `bakery-central-athens`). |
+| `timestamp` | ISO-8601 string | Yes | UTC timestamp of sample collection. |
+| `phases` | object | Yes | Keyed map for `L1`, `L2`, `L3` phase readings. |
+| `phases.<Lx>.voltage_v` | float | Yes | True RMS Phase-to-Neutral voltage ($180.0 - 260.0\text{ V}$). |
+| `phases.<Lx>.current_a` | float | Yes | True RMS AC current ($0.0 - 100.0\text{ A}$). |
+| `phases.<Lx>.active_power_kw` | float | Yes | Real active power per phase in kW. |
+| `phases.<Lx>.apparent_power_kva` | float | Yes | Apparent power per phase ($V_{rms} \times I_{rms} / 1000$). |
+| `phases.<Lx>.power_factor` | float | Yes | Displacement power factor ($\cos\varphi \in [-1.0, 1.0]$). |
+| `total_active_power_kw` | float | Yes | Arithmetic sum of active power across all 3 phases. |
+| `total_apparent_power_kva` | float | Yes | Total apparent power in kVA. |
+| `system_power_factor` | float | Yes | Overall weighted system power factor. |
+| `cumulative_energy_kwh` | float | Yes | Monotonically increasing energy register. |
+| `grid_frequency_hz` | float | No | Mains AC frequency (nominal $50.0\text{ Hz}$). |
+| `wifi_rssi_dbm` | integer | No | ESP32 Wi-Fi Received Signal Strength Indicator (in dBm). |
+
+#### Response (`200 OK`)
+```json
+{
+  "status": "success",
+  "facility_id": "bakery-central-athens",
+  "recorded_at": "2026-09-14T15:30:00Z",
+  "cost_metrics": {
+    "current_rate_eur_per_kwh": 0.2450,
+    "running_cost_eur_per_h": 4.3855,
+    "is_peak_window": true,
+    "is_excess_breach": false,
+    "excess_power_kw": 0.0,
+    "projected_excess_penalty_eur": 0.0
+  }
+}
+```
+
+#### Error Response (`422 Unprocessable Entity`)
+Occurs if the electrical invariant check fails ($|P_{tot} - \sum P_i| > 0.05\text{ kW}$):
+```json
+{
+  "detail": "Electrical invariant violation: total_active_power_kw (17.90) deviates from sum of phases (18.50) by > 0.05 kW"
+}
+```
+
+---
+
+## 2. Facilities & Real-Time Monitoring
+
+### `GET /api/v1/facilities`
+Lists all registered commercial facilities, their contracted kVA, and alert configurations.
+
+#### Response (`200 OK`)
+```json
+[
+  {
+    "facility_id": "bakery-central-athens",
+    "name": "Bakery Central Athens",
+    "business_type": "bakery",
+    "contract_type": "Γ22",
+    "tariff_color": "green",
+    "contracted_kva": 35.0,
+    "peak_threshold_kw": 22.0,
+    "telegram_chat_id": 999111222,
+    "created_at": "2026-09-01T00:00:00Z"
+  },
+  {
+    "facility_id": "cold-storage-piraeus",
+    "name": "Cold Storage Piraeus",
+    "business_type": "cold_storage",
+    "contract_type": "Γ22",
+    "tariff_color": "yellow",
+    "contracted_kva": 50.0,
+    "peak_threshold_kw": 30.0,
+    "telegram_chat_id": 999222333,
+    "created_at": "2026-09-01T00:00:00Z"
+  }
+]
+```
+
+---
+
+### `GET /api/v1/facilities/{facility_id}/status`
+Returns the instantaneous telemetry, current active kW, running cost in €/h, and active tariff window for a given facility.
+
+#### Query Parameters
+- None.
+
+#### Response (`200 OK`)
+```json
+{
+  "facility_id": "bakery-central-athens",
+  "name": "Bakery Central Athens",
+  "timestamp": "2026-09-14T15:30:00Z",
+  "total_active_power_kw": 17.90,
+  "total_apparent_power_kva": 18.27,
+  "system_power_factor": 0.98,
+  "running_cost_eur_per_h": 4.39,
+  "is_peak_window": true,
+  "peak_threshold_kw": 22.0,
+  "breach_state": "NORMAL",
+  "last_telemetry_age_seconds": 4
+}
+```
+
+---
+
+### `GET /api/v1/facilities/{facility_id}/cost-today`
+Calculates cumulative electricity expenditure, consumed kilowatt-hours, and projected peak surcharges for the specified date (defaults to today in Europe/Athens).
+
+#### Query Parameters
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `date` | `YYYY-MM-DD` | No | Current Date | Date for which to aggregate energy spend. |
+
+#### Response (`200 OK`)
+```json
+{
+  "facility_id": "bakery-central-athens",
+  "date": "2026-09-14",
+  "cumulative_kwh": 240.50,
+  "total_spend_eur": 48.60,
+  "peak_hours_spend_eur": 21.40,
+  "off_peak_spend_eur": 27.20,
+  "average_effective_rate_eur_per_kwh": 0.202,
+  "excess_demand_penalty_eur": 0.0,
+  "power_factor_penalty_eur": 0.0
+}
+```
+
+---
+
+### `GET /api/v1/facilities/{facility_id}/tariff`
+Returns detailed tariff contract specifications, current pricing components, and DEDDIE time-of-use schedule for the facility.
+
+#### Response (`200 OK`)
+```json
+{
+  "facility_id": "bakery-central-athens",
+  "contract_type": "Γ22",
+  "tariff_color": "green",
+  "contracted_kva": 35.0,
+  "active_season": "summer",
+  "peak_hours_schedule": "14:00 - 17:00 (Mon-Fri)",
+  "base_rate_eur_per_kwh": 0.1450,
+  "current_tea_m_minus_1": 118.50,
+  "effective_supply_rate_eur_per_kwh": 0.1820,
+  "regulated_charges_eur_per_kwh": 0.0630,
+  "vat_rate_percent": 6.0
+}
+```
+
+---
+
+## 3. Health & Diagnostics
+
+### `GET /health`
+Liveness and readiness healthcheck probe.
+
+#### Response (`200 OK`)
+```json
+{
+  "status": "healthy",
+  "version": "0.1.0",
+  "database": "connected",
+  "active_facilities": 3,
+  "timestamp": "2026-09-14T15:30:00Z"
+}
+```
+
+---
+
+## 4. cURL Examples
+
+### Post Telemetry Reading
+```bash
+curl -X POST http://localhost:8000/api/v1/telemetry \
+  -H "Content-Type: application/json" \
+  -d '{
+    "device_id": "esp32-001",
+    "facility_id": "bakery-central-athens",
+    "timestamp": "2026-09-14T15:00:00Z",
+    "phases": {
+      "L1": {"voltage_v": 230.0, "current_a": 20.0, "active_power_kw": 4.6, "apparent_power_kva": 4.6, "power_factor": 1.0},
+      "L2": {"voltage_v": 230.0, "current_a": 20.0, "active_power_kw": 4.6, "apparent_power_kva": 4.6, "power_factor": 1.0},
+      "L3": {"voltage_v": 230.0, "current_a": 20.0, "active_power_kw": 4.6, "apparent_power_kva": 4.6, "power_factor": 1.0}
+    },
+    "total_active_power_kw": 13.8,
+    "total_apparent_power_kva": 13.8,
+    "system_power_factor": 1.0,
+    "cumulative_energy_kwh": 100.5
+  }'
+```
+
+### Query Facility Status
+```bash
+curl -X GET http://localhost:8000/api/v1/facilities/bakery-central-athens/status
+```
+
+### Query Today's Cost
+```bash
+curl -X GET "http://localhost:8000/api/v1/facilities/bakery-central-athens/cost-today?date=2026-09-14"
+```
