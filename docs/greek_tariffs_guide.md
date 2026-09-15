@@ -43,7 +43,8 @@ Where:
 - $B$: Base retail supply charge (€/kWh).
 
 #### Final Retail Energy Rate:
-$$R_{\text{supply}} = \max\Big(0.00,\; B + MD \times (1 - \text{loss\_factor}) + \beta\Big)$$
+$$R_{\text{supply}} = \max\Big(0.00,\; B + MD \times (1 - L_{\text{loss}}) + \beta\Big)$$
+*(where $L_{\text{loss}}$ represents the grid loss factor, typically $13.5\%$)*
 
 ### 2.2 The Yellow Tariff (Indexed Dynamic)
 - The tariff is not fixed in advance; it is indexed directly to wholesale prices during the consumption month.

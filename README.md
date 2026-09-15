@@ -240,7 +240,9 @@ $$MD = \begin{cases}
 
 Final Retail Supply Rate:
 
-$$R_{final} = \max\Big(0.00,\; B + MD \times (1 - \text{loss\_factor}) + \beta\Big)$$
+$$R_{\text{final}} = \max\Big(0.00,\; B + MD \times (1 - L_{\text{loss}}) + \beta\Big)$$
+
+*(where $L_{\text{loss}}$ is the grid distribution loss factor, typically $13.5\%$)*
 
 ### 6.3 Yellow & Dynamic Hourly Spot Pricing
 - **Yellow (Indexed):** Indexed directly to wholesale clearing with fixed monthly retail margins.
