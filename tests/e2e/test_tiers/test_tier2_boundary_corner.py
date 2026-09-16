@@ -26,9 +26,7 @@ from tests.e2e.test_tiers.harness import (
 )
 
 
-# ==============================================================================
-# Boundary 1: Zero & Extreme Power Factor
-# ==============================================================================
+# --- Boundary 1: Zero & Extreme Power Factor ---
 
 class TestBoundary1PowerFactor:
     def test_boundary1_pf_zero_apparent_power_guard(self):
@@ -69,9 +67,7 @@ class TestBoundary1PowerFactor:
         assert math.isclose(payload.total_active_power_kw, payload.total_apparent_power_kva, abs_tol=0.05)
 
 
-# ==============================================================================
-# Boundary 2: Max Capacity Breach
-# ==============================================================================
+# --- Boundary 2: Max Capacity Breach ---
 
 class TestBoundary2MaxCapacityBreach:
     def test_boundary2_exact_contracted_kva(self, sample_facility_bakery):
@@ -123,9 +119,7 @@ class TestBoundary2MaxCapacityBreach:
         assert payload.total_active_power_kw == 21.0
 
 
-# ==============================================================================
-# Boundary 3: Boundary Minute of Peak Tariff Windows
-# ==============================================================================
+# --- Boundary 3: Boundary Minute of Peak Tariff Windows ---
 
 class TestBoundary3PeakWindowTransitions:
     def test_boundary3_summer_peak_start_exact(self):
@@ -174,9 +168,7 @@ class TestBoundary3PeakWindowTransitions:
         assert dt_mon.weekday() == 0
 
 
-# ==============================================================================
-# Boundary 4: Rapid-Fire Telemetry Bursts
-# ==============================================================================
+# --- Boundary 4: Rapid-Fire Telemetry Bursts ---
 
 class TestBoundary4RapidFireBursts:
     def test_boundary4_sub_second_burst_ingestion(self):
@@ -234,9 +226,7 @@ class TestBoundary4RapidFireBursts:
         assert sorted_payloads[1].timestamp == t2
 
 
-# ==============================================================================
-# Boundary 5: Borderline Threshold Hysteresis
-# ==============================================================================
+# --- Boundary 5: Borderline Threshold Hysteresis ---
 
 class TestBoundary5ThresholdHysteresis:
     def test_boundary5_exact_threshold_power(self, sample_facility_bakery):

@@ -53,7 +53,7 @@ The Behind-the-Meter EMS monitors 3-phase Low Voltage (230V/400V 50Hz) commercia
 | **Full-Scale Voltage Output** | Tailored by burden ($V_{peak} \le 1.273\text{ V}$) | $1.0\text{ V RMS} \implies 1.414\text{ V peak}$ |
 | **Suitability for Greek SMBs** | Ideal for $\le 70\text{ kVA}$ connections (Γ21, Γ22) | Limited to small single-phase loads ($\le 6.9\text{ kVA}$) |
 
-> ⚠️ **CRITICAL DISTINCTION:**  
+> **CRITICAL DISTINCTION:**  
 > Never connect an external burden resistor to an **SCT-013-030**. Doing so places two burden resistors in parallel, dividing the effective resistance and corrupting current readings by up to 80%.
 
 ---
@@ -134,7 +134,7 @@ The ESP32 SoC incorporates two independent 12-bit Successive Approximation Regis
 | **ADC1** | GPIO 32, 33, 34, 35, 36, 39 | **100% Compatible** (No conflict) | **MANDATORY for CT Clamps** |
 | **ADC2** | GPIO 0, 2, 4, 12, 13, 14, 15, 25, 26, 27 | **INCOMPATIBLE with Wi-Fi** | **STRICTLY PROHIBITED** |
 
-> 🚨 **CRITICAL HARDWARE WARNING:**  
+> **CRITICAL HARDWARE WARNING:**  
 > The ESP32's Wi-Fi and Bluetooth physical layer (RF transceiver) uses **ADC2** internally for continuous power management, AGC calibration, and RF RSSI measurements.  
 > Attempting to call `analogRead()` on any ADC2 pin while Wi-Fi is initialized will return arbitrary erroneous values (`0` or `4095`), cause Wi-Fi packet drops, or crash the FreeRTOS TCP/IP stack.
 

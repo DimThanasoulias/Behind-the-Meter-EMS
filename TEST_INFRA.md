@@ -1,8 +1,7 @@
 # Greek Commercial Behind-the-Meter EMS: Test Infrastructure Specification
 
 **Document Version:** 1.0.0  
-**Target Root:** `e:\project1`  
-**Owner:** `test_writer_e2e_1`  
+**Target Root:** `.`  
 **Date:** 2026-09-14  
 
 ---
@@ -12,7 +11,7 @@
 This document defines the testing infrastructure, execution harnesses, and test tier hierarchy for the Greek Behind-the-Meter Energy Management System (EMS). 
 
 The testing architecture adheres to strict **opaque-box, requirement-driven verification**:
-1. **Opaque-Box Independence**: Tests interact with the EMS solely via public REST APIs, contract functions, and bot client interfaces specified in `PROJECT.md` and `ORIGINAL_REQUEST.md`.
+1. **Opaque-Box Independence**: Tests interact with the EMS solely via public REST APIs, contract functions, and bot client interfaces specified in the architecture documentation.
 2. **Deterministic & Offline**: All external dependencies (Telegram Bot API, ESP32 Wi-Fi hardware, HEnEx Day-Ahead Market wholesale feeds) are decoupled via high-fidelity in-memory adapters (`MockTelegramClient`, SQLite `:memory:` / temp WAL database, parametric telemetry generators).
 3. **Execution Speed Guarantee**: The entire test suite completes execution in under 30 seconds (standard runs execute in < 4 seconds), enabling instant feedback loops in development and CI/CD pipelines.
 4. **Authoritative Output Derivation**: Expected test values are derived explicitly from:

@@ -30,9 +30,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["telemetry"])
 
 
-# ==============================================================================
-# Alert Dispatcher (Harmonized with bot.dispatcher)
-# ==============================================================================
+# --- Alert Dispatcher (Harmonized with bot.dispatcher) ---
 from bot.dispatcher import AlertDispatcher
 
 # Global singleton dispatcher
@@ -52,9 +50,7 @@ def get_database_store(request: Request) -> SQLiteStore:
     return get_store(db_path)
 
 
-# ==============================================================================
-# Ingestion Response Schema
-# ==============================================================================
+# --- Ingestion Response Schema ---
 
 class IngestionResponse(BaseModel):
     status: str = "success"
@@ -77,9 +73,7 @@ class IngestionResponse(BaseModel):
     alert_event: dict[str, Any] | None = None
 
 
-# ==============================================================================
-# Ingestion Endpoint
-# ==============================================================================
+# --- Ingestion Endpoint ---
 
 @router.post(
     "/telemetry",

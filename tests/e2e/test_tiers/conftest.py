@@ -61,7 +61,7 @@ def sample_facility_hotel():
 
 @pytest.fixture
 def sample_telemetry_dict():
-    """Returns a valid 3-phase telemetry dictionary matching PROJECT.md interface contract."""
+    """Returns a valid 3-phase telemetry dictionary matching the telemetry schema."""
     return {
         "device_id": "esp32-ems-001",
         "facility_id": "bakery-central-athens",

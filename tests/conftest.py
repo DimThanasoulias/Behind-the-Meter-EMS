@@ -31,7 +31,7 @@ def mock_telegram_client() -> Generator[MockTelegramClient, None, None]:
 def valid_telemetry_dict() -> dict[str, Any]:
     """Standard valid 3-phase commercial bakery telemetry payload dictionary.
 
-    Conforms to PROJECT.md interface contract:
+    Conforms to telemetry interface specification:
     P_total = 17.90 kW, sum(phases) = 5.95 + 5.82 + 6.13 = 17.90 kW (|delta| = 0.00 <= 0.05).
     """
     return {

@@ -48,9 +48,7 @@ from tests.e2e.test_tiers.harness import (
 )
 
 
-# ==============================================================================
-# Feature 1: Telemetry Calculations
-# ==============================================================================
+# --- Feature 1: Telemetry Calculations ---
 
 class TestFeature1TelemetryCalculations:
     def test_feature1_active_apparent_power_calculation(self):
@@ -98,9 +96,7 @@ class TestFeature1TelemetryCalculations:
         assert abs(payload.total_active_power_kw - sum_phases) <= 0.05
 
 
-# ==============================================================================
-# Feature 2: Γ21 Commercial Tariff (Single Rate LV <= 25 kVA)
-# ==============================================================================
+# --- Feature 2: Γ21 Commercial Tariff (Single Rate LV <= 25 kVA) ---
 
 class TestFeature2TariffG21:
     @pytest.fixture
@@ -147,9 +143,7 @@ class TestFeature2TariffG21:
         assert not res.is_peak_window
 
 
-# ==============================================================================
-# Feature 3: Γ22 Commercial Tariff (Dual-Rate LV > 25 kVA)
-# ==============================================================================
+# --- Feature 3: Γ22 Commercial Tariff (Dual-Rate LV > 25 kVA) ---
 
 class TestFeature3TariffG22:
     def test_feature3_g22_summer_peak_window_identification(self):
@@ -190,9 +184,7 @@ class TestFeature3TariffG22:
         assert res_peak.current_rate_eur_per_kwh > res_offpeak.current_rate_eur_per_kwh
 
 
-# ==============================================================================
-# Feature 4: Γ23 Medium Voltage Commercial Tariff (> 250 kVA)
-# ==============================================================================
+# --- Feature 4: Γ23 Medium Voltage Commercial Tariff (> 250 kVA) ---
 
 class TestFeature4TariffG23:
     def test_feature4_g23_mv_lower_regulated_rate(self, sample_facility_hotel):
@@ -235,9 +227,7 @@ class TestFeature4TariffG23:
         assert res.running_cost_eur_per_h > 20.0
 
 
-# ==============================================================================
-# Feature 5: Green Tariff Formula (Law 5068/2023)
-# ==============================================================================
+# --- Feature 5: Green Tariff Formula (Law 5068/2023) ---
 
 class TestFeature5GreenTariffFormula:
     def test_feature5_green_tariff_normal_band_no_fluctuation(self):
@@ -270,9 +260,7 @@ class TestFeature5GreenTariffFormula:
         assert math.isclose(md_15, md_1 * 1.5, rel_tol=1e-3)
 
 
-# ==============================================================================
-# Feature 6: Yellow & Dynamic DAM Spot Pricing
-# ==============================================================================
+# --- Feature 6: Yellow & Dynamic DAM Spot Pricing ---
 
 class TestFeature6YellowDynamicTariff:
     def test_feature6_yellow_base_plus_market_index(self):
@@ -304,9 +292,7 @@ class TestFeature6YellowDynamicTariff:
         assert rate >= 0.035
 
 
-# ==============================================================================
-# Feature 7: Regulated Charges (DEDDIE, ADMIE, ETMEAR, YKO, EFK, VAT)
-# ==============================================================================
+# --- Feature 7: Regulated Charges (DEDDIE, ADMIE, ETMEAR, YKO, EFK, VAT) ---
 
 class TestFeature7RegulatedCharges:
     def test_feature7_deddie_distribution_volumetric_charge(self):
@@ -337,9 +323,7 @@ class TestFeature7RegulatedCharges:
         assert res.vat_rate == 0.06
 
 
-# ==============================================================================
-# Feature 8: Capacity Excess & Power Factor Penalties
-# ==============================================================================
+# --- Feature 8: Capacity Excess & Power Factor Penalties ---
 
 class TestFeature8Penalties:
     def test_feature8_power_factor_below_085_multiplier(self):
@@ -374,9 +358,7 @@ class TestFeature8Penalties:
         assert res_low_pf.current_rate_eur_per_kwh > res_high_pf.current_rate_eur_per_kwh
 
 
-# ==============================================================================
-# Feature 9: Running Costs & Daily Spend Accumulator
-# ==============================================================================
+# --- Feature 9: Running Costs & Daily Spend Accumulator ---
 
 class TestFeature9RunningCostsAndDailySpend:
     def test_feature9_instantaneous_running_cost_eur_per_hour(self, sample_facility_bakery):
@@ -413,9 +395,7 @@ class TestFeature9RunningCostsAndDailySpend:
         assert math.isclose(avg_rate, 0.202, rel_tol=1e-2)
 
 
-# ==============================================================================
-# Feature 10: Peak Surcharge Projection
-# ==============================================================================
+# --- Feature 10: Peak Surcharge Projection ---
 
 class TestFeature10PeakSurchargeProjection:
     def test_feature10_peak_projection_active_breach(self, sample_facility_bakery):
@@ -455,9 +435,7 @@ class TestFeature10PeakSurchargeProjection:
         assert math.isclose(res_4kw.projected_excess_penalty_eur, res_2kw.projected_excess_penalty_eur * 2.0, rel_tol=0.05)
 
 
-# ==============================================================================
-# Feature 11: Telemetry Ingestion API (Pydantic & Physical Invariants)
-# ==============================================================================
+# --- Feature 11: Telemetry Ingestion API (Pydantic & Physical Invariants) ---
 
 class TestFeature11TelemetryIngestion:
     def test_feature11_valid_payload_parsing_and_invariants(self, sample_telemetry_dict):
@@ -495,9 +473,7 @@ class TestFeature11TelemetryIngestion:
             TelemetryPayload(**corrupted)
 
 
-# ==============================================================================
-# Feature 12: Proactive Alert Generation within 30s
-# ==============================================================================
+# --- Feature 12: Proactive Alert Generation within 30s ---
 
 class TestFeature12ProactiveAlertGeneration:
     def test_feature12_breach_generates_alert_in_peak_window(self, sample_facility_bakery):
@@ -554,9 +530,7 @@ class TestFeature12ProactiveAlertGeneration:
         assert event.running_cost_eur_h > 0.0
 
 
-# ==============================================================================
-# Feature 13: Greek Notification Templates
-# ==============================================================================
+# --- Feature 13: Greek Notification Templates ---
 
 class TestFeature13GreekNotificationTemplates:
     def test_feature13_greek_peak_breach_header_and_keywords(self, sample_facility_bakery):
@@ -613,9 +587,7 @@ class TestFeature13GreekNotificationTemplates:
         assert "18.0 kW" in recovery_event.message_text
 
 
-# ==============================================================================
-# Feature 14: Alert Throttling, Cooldown & Hysteresis
-# ==============================================================================
+# --- Feature 14: Alert Throttling, Cooldown & Hysteresis ---
 
 class TestFeature14ThrottlingCooldownHysteresis:
     def test_feature14_three_sample_debounce_before_alert(self, sample_facility_bakery):
@@ -685,9 +657,7 @@ class TestFeature14ThrottlingCooldownHysteresis:
         assert dispatcher.state == AlertState.COOLDOWN
 
 
-# ==============================================================================
-# Feature 15: Greek Commands (/status, /cost_today, /tariff, /settings)
-# ==============================================================================
+# --- Feature 15: Greek Commands (/status, /cost_today, /tariff, /settings) ---
 
 class TestFeature15GreekBotCommands:
     def test_feature15_command_status_formatting_and_phases(self, sample_facility_bakery):
@@ -725,9 +695,7 @@ class TestFeature15GreekBotCommands:
         assert "/status" in res
 
 
-# ==============================================================================
-# Feature 16: Commercial Simulation Profiles (Bakery, Cold Storage, Hotel)
-# ==============================================================================
+# --- Feature 16: Commercial Simulation Profiles (Bakery, Cold Storage, Hotel) ---
 
 class TestFeature16CommercialSimulationProfiles:
     def test_feature16_bakery_morning_baking_spike(self):

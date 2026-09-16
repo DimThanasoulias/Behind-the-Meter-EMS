@@ -1,11 +1,10 @@
 """
-Comprehensive test harness, contract models, and reference oracles for
+Test harness, validation models, and reference calculation oracles for
 Greek Commercial Behind-the-Meter EMS E2E test suites.
 
-Strictly derived from:
-- ORIGINAL_REQUEST.md (§R1, §R2, §R3, §R4)
-- PROJECT.md (§Interface Contracts, §Feature Inventory)
-- Greek Law 5068/2023 & Ministerial Decision (ΥΠΕΝ)
+Reference standards:
+- Greek Law 5068/2023 & Ministerial Decision (ΥΠΕΝ) Green Tariff Regulation
+- DEDDIE / ADMIE Commercial Tariff Schedules (Γ21, Γ22, Γ23)
 """
 
 from __future__ import annotations
@@ -17,9 +16,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from pydantic import BaseModel, Field, model_validator
 
 
-# ==============================================================================
-# 1. Physical & Telemetry Pydantic Models (Interface Contract 1)
-# ==============================================================================
+# --- 1. Physical & Telemetry Pydantic Models (Interface Contract 1) ---
 
 class PhaseReading(BaseModel):
     voltage_v: float = Field(..., ge=0.0, le=350.0, description="Phase-to-Neutral RMS Voltage [V]")
@@ -127,9 +124,7 @@ def create_valid_telemetry_payload(
     )
 
 
-# ==============================================================================
-# 2. Tariff & Regulatory Mathematics (Interface Contract 2)
-# ==============================================================================
+# --- 2. Tariff & Regulatory Mathematics (Interface Contract 2) ---
 
 class TariffZone(str, Enum):
     PEAK = "PEAK"          # Greek Ζώνη Αιχμής
@@ -364,9 +359,7 @@ def calculate_realtime_cost(
     )
 
 
-# ==============================================================================
-# 3. Alert Dispatcher & State Machine (Interface Contract 3)
-# ==============================================================================
+# --- 3. Alert Dispatcher & State Machine (Interface Contract 3) ---
 
 class AlertState(str, Enum):
     IDLE = "IDLE"
@@ -551,9 +544,7 @@ class AlertDispatcherStateMachine:
         )
 
 
-# ==============================================================================
-# 4. Telegram Mock Client & Greek Bot Commands (Interface Contract 4)
-# ==============================================================================
+# --- 4. Telegram Mock Client & Greek Bot Commands (Interface Contract 4) ---
 
 class MockTelegramClient:
     """Thread-safe in-memory Telegram client mock for deterministic E2E verification."""
@@ -654,9 +645,7 @@ def format_greek_bot_response(
         return f"Άγνωστη εντολή: {command}. Διαθέσιμες εντολές: /status, /cost_today, /tariff, /settings"
 
 
-# ==============================================================================
-# 5. Commercial Simulation Profile Generators
-# ==============================================================================
+# --- 5. Commercial Simulation Profile Generators ---
 
 def get_commercial_bakery_power(hour_float: float) -> float:
     """

@@ -48,9 +48,7 @@ def _strip_html(text: str) -> str:
     return re.sub(r"<[^>]+>", "", text)
 
 
-# ==============================================================================
-# Request & Response Schemas
-# ==============================================================================
+# --- Request & Response Schemas ---
 
 class ViberSendPayload(BaseModel):
     receiver_id: str = Field(..., description="Viber unique member ID")
@@ -71,9 +69,7 @@ class ViberStatusResponse(BaseModel):
     webhook_url: str
 
 
-# ==============================================================================
-# Endpoints
-# ==============================================================================
+# --- Endpoints ---
 
 @router.get(
     "/status",

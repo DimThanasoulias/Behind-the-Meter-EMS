@@ -1,20 +1,20 @@
-"""Adversarial stress and concurrency test harness for Milestone E1.
+"""Stress and concurrency test harness for live market tariff ingestion.
 
-Engineered by Challenger 2 to empirically challenge:
+Validates:
 1. Law 5068/2023 Green Tariff Fluctuation Mechanism correctness across all TEA zones:
    - Zone 1: TEA < Ll (lower rebate/discount)
    - Zone 2: Ll <= TEA <= Lu (deadband neutral window)
    - Zone 3: TEA > Lu (upper surcharge)
    - Boundaries: TEA == Ll, TEA == Lu, continuity, and monotonicity (dMD/dTEA >= 0)
-   - Adversarial TEA values: negative rates (-500, -100, -10), zero, low wholesale (0.5, 1.0), extreme spikes (+3000, +10000)
+   - Boundary TEA values: negative rates (-500, -100, -10), zero, low wholesale (0.5, 1.0), extreme spikes (+3000, +10000)
    - Real Greek supplier profiles (ΔΕΗ, Protergia, Elpedison, Heron)
 2. Concurrency stress:
    - Simultaneous market refresh (POST /market/refresh-green), DAM fetch (POST /market/fetch-dam),
      and high-throughput telemetry ingestion (POST /telemetry)
    - Race condition detection, SQLite WAL lock contention, and in-memory cache thread safety
-3. Cache hit performance & Tier progression:
-   - Microsecond latency benchmarks across L1, L2, L3, L4
-   - L2-to-L1 cache bypass empirical investigation
+3. Cache hit performance & tier progression:
+   - Latency benchmarks across L1, L2, L3, L4
+   - L2-to-L1 cache bypass verification
 """
 
 from __future__ import annotations
@@ -38,9 +38,7 @@ from tariff_engine.green_tariff import (
     calculate_green_tariff_supply_rate,
 )
 
-# ==============================================================================
-# 1. LAW 5068/2023 TARIFF FORMULA ADVERSARIAL CHALLENGES
-# ==============================================================================
+# --- 1. LAW 5068/2023 TARIFF FORMULA ADVERSARIAL CHALLENGES ---
 
 class TestLaw5068TariffFormulaCorrectness:
     """Empirically validates compliance of green tariff calculations with Law 5068/2023."""
@@ -244,9 +242,7 @@ class TestLaw5068TariffFormulaCorrectness:
             assert disc < 0.0001
 
 
-# ==============================================================================
-# 2. CONCURRENCY & STRESS TEST HARNESS
-# ==============================================================================
+# --- 2. CONCURRENCY & STRESS TEST HARNESS ---
 
 class TestConcurrencyAndThreadSafety:
     """Stress tests concurrent telemetry ingestion alongside market refresh operations."""
@@ -428,9 +424,7 @@ class TestConcurrencyAndThreadSafety:
         assert len(errors) == 0, f"Thread safety errors detected: {errors}"
 
 
-# ==============================================================================
-# 3. CACHE PERFORMANCE & TIER PROGRESSION INVESTIGATION
-# ==============================================================================
+# --- 3. CACHE PERFORMANCE & TIER PROGRESSION INVESTIGATION ---
 
 class TestCachePerformanceAndProgression:
     """Investigates performance characteristics and caching behaviors across tiers."""

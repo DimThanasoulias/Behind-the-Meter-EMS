@@ -136,7 +136,7 @@ class VerificationReporter:
             "elapsed_ms": elapsed_ms,
             "details": details,
         })
-        status_str = "✅ PASS" if passed else "❌ FAIL"
+        status_str = "[PASS]" if passed else "[FAIL]"
         print(f"[{check_id}/9] {status_str} | {name:<46} | {elapsed_ms:6.1f} ms | {details}")
 
     def total_elapsed_s(self) -> float:
@@ -160,10 +160,10 @@ class VerificationReporter:
         print("=" * 80)
 
         if all_passed and total_s < 30.0:
-            print("🎉 ALL VERIFICATION CRITERIA MET (Exit Code 0)\n")
+            print("ALL VERIFICATION CRITERIA MET (Exit Code 0)\n")
             return True
         else:
-            print("❌ VERIFICATION FAILED (Exit Code 1)\n")
+            print("VERIFICATION FAILED (Exit Code 1)\n")
             return False
 
 

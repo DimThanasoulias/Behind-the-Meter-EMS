@@ -12,8 +12,7 @@ venv/
 ENV/
 env/
 
-# Teamwork Agent working directories and test cache
-.agents/
+# Local test cache and tooling artifacts
 .coverage
 htmlcov/
 .pytest_cache/

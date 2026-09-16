@@ -18,9 +18,7 @@ from backend.models.telemetry import (
 )
 from bot.telegram_client import LiveTelegramClient
 
-# =====================================================================
-# 1. Normal Serialization & Model Instantiation
-# =====================================================================
+# --- 1. Normal Serialization & Model Instantiation ---
 
 def test_telemetry_payload_valid_deserialization(valid_telemetry_dict):
     """Test that a well-formed telemetry payload deserializes into TelemetryPayload."""
@@ -73,9 +71,7 @@ def test_telemetry_payload_model_dump_roundtrip(valid_telemetry_payload):
     assert restored_from_json.phases["L1"].voltage_v == 230.2
 
 
-# =====================================================================
-# 2. Electrical Invariant Validation (|P_tot - sum(P_i)| <= 0.05 kW)
-# =====================================================================
+# --- 2. Electrical Invariant Validation (|P_tot - sum(P_i)| <= 0.05 kW) ---
 
 def test_electrical_invariant_exact_match(valid_telemetry_dict):
     """Total active power exactly equals sum of phase active powers."""
@@ -126,9 +122,7 @@ def test_electrical_invariant_gross_mismatch(invalid_telemetry_unbalanced_active
     assert "Electrical invariant violated" in str(exc_info.value)
 
 
-# =====================================================================
-# 3. Power Factor Boundary Validation (cos φ in [-1.0, 1.0])
-# =====================================================================
+# --- 3. Power Factor Boundary Validation (cos φ in [-1.0, 1.0]) ---
 
 @pytest.mark.parametrize("valid_pf", [1.0, 0.98, 0.85, 0.0, -0.85, -1.0])
 def test_system_power_factor_valid_boundaries(valid_telemetry_dict, valid_pf):
@@ -154,9 +148,7 @@ def test_individual_phase_power_factor_invalid(valid_telemetry_dict, invalid_pf)
         TelemetryPayload.model_validate(valid_telemetry_dict)
 
 
-# =====================================================================
-# 4. Grid Frequency Validation (Frequency > 0 Hz)
-# =====================================================================
+# --- 4. Grid Frequency Validation (Frequency > 0 Hz) ---
 
 @pytest.mark.parametrize("valid_freq", [50.0, 50.02, 49.98, 60.0, 0.01])
 def test_grid_frequency_positive(valid_telemetry_dict, valid_freq):
@@ -174,9 +166,7 @@ def test_grid_frequency_non_positive_rejected(valid_telemetry_dict, invalid_freq
         TelemetryPayload.model_validate(valid_telemetry_dict)
 
 
-# =====================================================================
-# 5. Phase Completeness & Strict Schema Validation
-# =====================================================================
+# --- 5. Phase Completeness & Strict Schema Validation ---
 
 def test_missing_phase_l3_rejected(invalid_telemetry_missing_phase):
     """Payload missing phase L3 must raise ValidationError."""
@@ -199,9 +189,7 @@ def test_extra_fields_forbidden(valid_telemetry_dict):
         TelemetryPayload.model_validate(valid_telemetry_dict)
 
 
-# =====================================================================
-# 6. Timestamp Validation
-# =====================================================================
+# --- 6. Timestamp Validation ---
 
 def test_timestamp_valid_formats(valid_telemetry_dict):
     """Test ISO 8601 strings with 'Z' and timezone offsets, and native datetime."""
@@ -222,9 +210,7 @@ def test_timestamp_invalid_range(valid_telemetry_dict):
     assert "valid operational range" in str(exc_info.value)
 
 
-# =====================================================================
-# 7. Commercial Edge Cases
-# =====================================================================
+# --- 7. Commercial Edge Cases ---
 
 def test_commercial_night_idle_baseload(valid_telemetry_dict):
     """Night idle baseload with minimal load (0.0 kW on all phases)."""
@@ -253,9 +239,7 @@ def test_high_commercial_load(valid_telemetry_dict):
     assert payload.total_active_power_kw == 45.0
 
 
-# =====================================================================
-# 8. Alert Models & Configuration Verification
-# =====================================================================
+# --- 8. Alert Models & Configuration Verification ---
 
 def test_alert_threshold_config_properties(sample_bakery_facility_config):
     """Verify calculated properties on AlertThresholdConfig."""
@@ -283,9 +267,7 @@ def test_alert_event_serialization(sample_alert_event):
     assert restored.dispatched is True
 
 
-# =====================================================================
-# 9. Bot Telegram Client Tests
-# =====================================================================
+# --- 9. Bot Telegram Client Tests ---
 
 def test_mock_telegram_client_send_and_inspect(mock_telegram_client):
     """Verify that MockTelegramClient queues messages, updates counters, and clears."""

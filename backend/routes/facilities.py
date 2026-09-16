@@ -26,9 +26,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/facilities", tags=["facilities"])
 
 
-# ==============================================================================
-# Response Schemas
-# ==============================================================================
+# --- Response Schemas ---
 
 class FacilityStatusResponse(BaseModel):
     facility_id: str
@@ -72,9 +70,7 @@ class TariffConfigResponse(BaseModel):
     peak_window_schedule: dict[str, str]
 
 
-# ==============================================================================
-# Endpoints
-# ==============================================================================
+# --- Endpoints ---
 
 @router.get(
     "",

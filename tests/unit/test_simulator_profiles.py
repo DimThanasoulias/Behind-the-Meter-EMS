@@ -40,9 +40,7 @@ from simulator.profiles import (
     get_profile,
 )
 
-# ==============================================================================
-# 1. Commercial Bakery Profile Tests
-# ==============================================================================
+# --- 1. Commercial Bakery Profile Tests ---
 
 class TestBakeryProfile:
     """Tests commercial bakery 24h load curve and profile class."""
@@ -100,9 +98,7 @@ class TestBakeryProfile:
         assert 24.0 <= power_dt <= 28.0
 
 
-# ==============================================================================
-# 2. Cold Storage Profile Tests
-# ==============================================================================
+# --- 2. Cold Storage Profile Tests ---
 
 class TestColdStorageProfile:
     """Tests cold storage refrigeration thermodynamic cycling and disturbances."""
@@ -153,9 +149,7 @@ class TestColdStorageProfile:
         assert 4.0 <= power_restored <= 6.0
 
 
-# ==============================================================================
-# 3. Boutique Hotel Profile Tests
-# ==============================================================================
+# --- 3. Boutique Hotel Profile Tests ---
 
 class TestBoutiqueHotelProfile:
     """Tests boutique hotel load curve across 24h operational cycles."""
@@ -200,9 +194,7 @@ class TestBoutiqueHotelProfile:
         assert 28.0 <= power_dt <= 35.0
 
 
-# ==============================================================================
-# 4. Profile Registry & Factory Tests
-# ==============================================================================
+# --- 4. Profile Registry & Factory Tests ---
 
 class TestProfileRegistry:
     """Tests get_profile factory and registry lookup."""
@@ -220,9 +212,7 @@ class TestProfileRegistry:
             get_profile("unknown_commercial_entity")
 
 
-# ==============================================================================
-# 5. Telemetry Generator & Electrical Invariant Compliance Tests
-# ==============================================================================
+# --- 5. Telemetry Generator & Electrical Invariant Compliance Tests ---
 
 class TestTelemetryGeneratorElectricalInvariants:
     """Tests 3-phase electrical invariant compliance, physical realism, and Pydantic validation."""
@@ -275,9 +265,7 @@ class TestTelemetryGeneratorElectricalInvariants:
         assert set(revalidated.phases.keys()) == {"L1", "L2", "L3"}
 
 
-# ==============================================================================
-# 6. Gaussian Noise Generation Tests
-# ==============================================================================
+# --- 6. Gaussian Noise Generation Tests ---
 
 class TestNoiseGeneration:
     """Tests load noise addition and invariant preservation under noise."""
@@ -312,9 +300,7 @@ class TestNoiseGeneration:
                 assert phase.active_power_kw >= 0.0
 
 
-# ==============================================================================
-# 7. Automated Peak Breach Injection Tests
-# ==============================================================================
+# --- 7. Automated Peak Breach Injection Tests ---
 
 class TestBreachInjection:
     """Tests automated peak breach triggering for sub-30s test verification."""
@@ -359,9 +345,7 @@ class TestBreachInjection:
         assert restored.total_active_power_kw < 10.0
 
 
-# ==============================================================================
-# 8. Fast-Forward, Energy Accumulation & Speed Tests
-# ==============================================================================
+# --- 8. Fast-Forward, Energy Accumulation & Speed Tests ---
 
 class TestFastForwardAndEnergyAccumulation:
     """Tests virtual time compression and numeric kWh integration."""
@@ -406,9 +390,7 @@ class TestFastForwardAndEnergyAccumulation:
         assert len(readings) == 6
 
 
-# ==============================================================================
-# 9. Standalone CLI & HTTP Ingestion Tests
-# ==============================================================================
+# --- 9. Standalone CLI & HTTP Ingestion Tests ---
 
 class TestSimulatorCLI:
     """Tests CLI argument parsing, dry-run mode, and HTTP streaming dispatch."""

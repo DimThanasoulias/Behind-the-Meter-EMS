@@ -29,9 +29,7 @@ router = APIRouter(tags=["dashboard"])
 TEMPLATE_PATH = Path(__file__).parent.parent / "templates" / "dashboard.html"
 
 
-# ==============================================================================
-# Pydantic Schemas
-# ==============================================================================
+# --- Pydantic Schemas ---
 
 class DashboardTimelinePoint(BaseModel):
     timestamp: str
@@ -77,9 +75,7 @@ class DashboardConfigUpdateRequest(BaseModel):
     viber_receiver_id: str | None = Field(default=None)
 
 
-# ==============================================================================
-# Endpoints
-# ==============================================================================
+# --- Endpoints ---
 
 @router.get(
     "/dashboard",

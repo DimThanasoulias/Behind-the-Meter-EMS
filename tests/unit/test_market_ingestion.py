@@ -35,9 +35,7 @@ from backend.market.scraper_rae import (
 from backend.market.service import MarketPriceService
 from tariff_engine.market_feed import resolve_effective_tea
 
-# ==============================================================================
-# RAE Scraper & Formula Validation Unit Tests
-# ==============================================================================
+# --- RAE Scraper & Formula Validation Unit Tests ---
 
 class TestRaeScraperAndParser:
     """Test RAE monthly Green Tariff scraping and parser routines."""
@@ -195,9 +193,7 @@ class TestRaeScraperAndParser:
         assert disc > 0.10
 
 
-# ==============================================================================
-# HEnEx DAM Fetcher & DST Unit Tests
-# ==============================================================================
+# --- HEnEx DAM Fetcher & DST Unit Tests ---
 
 class TestHenexFetcherAndValidation:
     """Test HEnEx Day-Ahead Market parser, DST transitions, and boundary checks."""
@@ -287,9 +283,7 @@ class TestHenexFetcherAndValidation:
         assert validate_dam_prices(bad_prices_high, "2026-09-15") is False
 
 
-# ==============================================================================
-# 4-Tier Caching & Fallback Progression Tests
-# ==============================================================================
+# --- 4-Tier Caching & Fallback Progression Tests ---
 
 class TestFourTierCachingAndFallbackProgression:
     """Test L1 Memory -> L2 SQLite -> L3 JSON Seed -> L4 Algorithmic progression."""
@@ -394,9 +388,7 @@ class TestFourTierCachingAndFallbackProgression:
         assert tea_yellow > 0.0
 
 
-# ==============================================================================
-# Tariff Engine Adapter Tests
-# ==============================================================================
+# --- Tariff Engine Adapter Tests ---
 
 class TestTariffEngineMarketFeedAdapter:
     """Test resolve_effective_tea pure functional adapter in tariff_engine/market_feed.py."""

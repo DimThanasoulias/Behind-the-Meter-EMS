@@ -7,20 +7,20 @@
 [![Safety Standard](https://img.shields.io/badge/Standard-ELOT%2060364-red.svg)](https://www.elot.gr)
 [![Tests: 438 Passed](https://img.shields.io/badge/tests-438%20passed%20(100%25)-success.svg)](tests/)
 
-A production-grade, modular Behind-the-Meter Energy Management System (EMS) engineered specifically for **Greek commercial SMBs** (artisanal bakeries, cold storage logistics, and boutique hotels). The system ingests 3-phase electrical power telemetry from ESP32 microcontrollers sampling split-core current transformers (SCT-013), calculates real-time electricity costs according to official Greek commercial tariff schemes (**Γ21, Γ22, Γ23, Green, Yellow, Dynamic**), ingests live energy market prices from **RAE** and **HEnEx**, delivers proactive cost-saving alerts via **Telegram & Viber**, and provides a responsive real-time **Web Dashboard** at `/dashboard`.
+An end-to-end Behind-the-Meter Energy Management System (EMS) engineered for **Greek commercial facilities** (artisanal bakeries, cold storage logistics, boutique hotels). The system ingests 3-phase electrical power telemetry from ESP32 microcontrollers sampling split-core current transformers (SCT-013), calculates real-time electricity costs according to Greek commercial tariff schemes (**Γ21, Γ22, Γ23, Green, Yellow, Dynamic**), ingests live energy market prices from **RAE** and **HEnEx**, delivers proactive cost-saving alerts via **Telegram & Viber**, and provides a real-time **Web Dashboard** at `/dashboard`.
 
 ---
 
-## 📚 Complete Documentation Index
+## Documentation Index
 
 | Guide | Document Link | Description |
 |---|---|---|
-| 📐 **Hardware Schematics & Wiring** | [`docs/wiring_schematic.md`](docs/wiring_schematic.md) | SCT-013 CT clamp connections, burden resistor math ($18\,\Omega$), ADC1 pinout, virtual ground, and ELOT 60364 safety standards. |
-| 🛒 **Hardware Bill of Materials (BOM)** | [`docs/hardware_bom.md`](docs/hardware_bom.md) | Sub-€50 component list, part numbers, suppliers, PCB layout, and DIN-rail enclosure recommendations. |
-| 🇬🇷 **Greek Commercial Electricity Tariffs** | [`docs/greek_tariffs_guide.md`](docs/greek_tariffs_guide.md) | Detailed analysis of contracts Γ21, Γ22, Γ23, Law 5068/2023 Green tariff formula, DEDDIE peak schedules, and power factor penalties. |
-| 🔌 **REST API Reference** | [`docs/api_reference.md`](docs/api_reference.md) | FastAPI endpoint documentation, JSON request/response schemas, market feeds, Viber webhook, and dashboard endpoints. |
-| 🤖 **Telegram & Viber Bot Guide** | [`docs/telegram_bot_guide.md`](docs/telegram_bot_guide.md) | BotFather configuration, Viber bot tokens, webhook routing, anti-spam throttling, and Greek interactive commands. |
-| 🚀 **Production Deployment Guide** | [`docs/deployment_guide.md`](docs/deployment_guide.md) | Systemd unit configuration, environment variables, PlatformIO ESP32 firmware flashing, and operations runbook. |
+| **Hardware Schematics & Wiring** | [`docs/wiring_schematic.md`](docs/wiring_schematic.md) | SCT-013 CT clamp connections, burden resistor calculation ($18\,\Omega$), ADC1 pinout, virtual ground, and ELOT 60364 safety standards. |
+| **Hardware Bill of Materials (BOM)** | [`docs/hardware_bom.md`](docs/hardware_bom.md) | Sub-€50 component list, part numbers, suppliers, PCB layout, and DIN-rail enclosure recommendations. |
+| **Greek Commercial Electricity Tariffs** | [`docs/greek_tariffs_guide.md`](docs/greek_tariffs_guide.md) | Detailed analysis of contracts Γ21, Γ22, Γ23, Law 5068/2023 Green tariff formula, DEDDIE peak schedules, and power factor penalties. |
+| **REST API Reference** | [`docs/api_reference.md`](docs/api_reference.md) | FastAPI endpoint documentation, JSON request/response schemas, market feeds, Viber webhook, and dashboard endpoints. |
+| **Telegram & Viber Bot Guide** | [`docs/telegram_bot_guide.md`](docs/telegram_bot_guide.md) | BotFather configuration, Viber bot tokens, webhook routing, anti-spam throttling, and Greek interactive commands. |
+| **Production Deployment Guide** | [`docs/deployment_guide.md`](docs/deployment_guide.md) | Systemd unit configuration, environment variables, PlatformIO ESP32 firmware flashing, and operations runbook. |
 
 ---
 
@@ -80,41 +80,41 @@ A production-grade, modular Behind-the-Meter Energy Management System (EMS) engi
 
 ## 2. Feature Inventory (F01–F33)
 
-| # | Feature | Milestone | Scope & Description | Requirements |
-|---|---|---|---|---|
-| **F01** | ESP32 Analog Sampling & ADC1 Pinout | M4 | Non-invasive CT sampling using ADC1 (GPIO 34, 35, 32), DC bias (1.65V), avoiding Wi-Fi ADC2 conflict | `ORIGINAL_REQUEST` §R1 |
-| **F02** | SCT-013 Burden Resistor Derivation | M4 | Exact derivation for SCT-013-000 ($18\,\Omega$ for 3.3V, $22\,\Omega$ for 5V) and SCT-013-030 internal burden | `ORIGINAL_REQUEST` §R1 |
-| **F03** | 3-Phase Electrical Power Calculations | M4 | Computation of True RMS current, active power ($P$), apparent power ($S$), power factor ($\cos\varphi$) | `ORIGINAL_REQUEST` §R1 |
-| **F04** | Trapezoidal Cumulative Energy Integration | M4 | Real-time numeric integration of active power into cumulative kWh | `ORIGINAL_REQUEST` §R1 |
-| **F05** | ESP32 Wi-Fi & Reconnection Resilience | M4 | Automatic exponential backoff reconnection for Wi-Fi and HTTPS/MQTT endpoints | `ORIGINAL_REQUEST` §R1 |
-| **F06** | ESP32 Telemetry Store-and-Forward | M4 | In-memory ring buffer holding telemetry readings during temporary network dropouts | `ORIGINAL_REQUEST` §R1 |
-| **F07** | PlatformIO Clean Build Configuration | M4 | Clean compilable `platformio.ini` for `esp32dev` board without warnings/errors | `ORIGINAL_REQUEST` §R1 |
-| **F08** | Greek Tariff Contract Γ21 (LV Commercial) | M2 | Single-rate commercial tariff modeling for $\le 25\text{ kVA}$ connections | `ORIGINAL_REQUEST` §R2 |
-| **F09** | Greek Tariff Contract Γ22 (Dual Rate) | M2 | Commercial dual-rate tariff modeling with DEDDIE peak and off-peak windows | `ORIGINAL_REQUEST` §R2 |
-| **F10** | Greek Tariff Contract Γ23 (MV Commercial) | M2 | Medium voltage commercial structure modeling ($> 250\text{ kVA}$) | `ORIGINAL_REQUEST` §R2 |
-| **F11** | Green Tariff Fluctuation Mechanism | M2 | Official Law 5068/2023 / MD ΥΠΕΝ formula with TEA, $\alpha$, $L_u$, $L_l$, $\beta$ parameters | `ORIGINAL_REQUEST` §R2 |
-| **F12** | Yellow & Dynamic Hourly Spot Tariff | M2 | Day-Ahead Market (DAM) hourly spot price indexing with supplier margins | `ORIGINAL_REQUEST` §R2 |
-| **F13** | Regulated Charges Modeling | M2 | DEDDIE distribution, ADMIE transmission, ETMEAR, YKO, EFK, DETE, and 6% VAT | `ORIGINAL_REQUEST` §R2 |
-| **F14** | Capacity Excess & Power Factor Penalties | M2 | Penalties for exceeding contracted kVA and $\cos\varphi < 0.85$ distribution multiplier | `ORIGINAL_REQUEST` §R2 |
-| **F15** | Real-Time Running Cost (€/h) & Daily Spend | M2 | Instantaneous €/h calculation, daily spend accumulator, and baseline delta | `ORIGINAL_REQUEST` §R2 |
-| **F16** | Projected Peak-Hour Surcharge Calculation | M2 | Mathematical projection of excess cost during active peak tariff windows | `ORIGINAL_REQUEST` §R2 |
-| **F17** | Backend Telemetry Ingestion API | M3 | FastAPI REST endpoint (`POST /api/v1/telemetry`) with Pydantic v2 payload validation | `ORIGINAL_REQUEST` §R4 |
-| **F18** | Electrical Invariant Validation | M3 | Strict backend checks ensuring $\vert P_{tot} - \sum P_i \vert \le 0.05\text{ kW}$ and $\cos\varphi \in [-1, 1]$ | `ORIGINAL_REQUEST` §R4 |
-| **F19** | SQLite Time-Series Storage | M3 | High-throughput SQLite storage with WAL mode, facility indexing, and query APIs | `ORIGINAL_REQUEST` §R4 |
-| **F20** | Facility Status & Cost Endpoints | M3 | `GET /api/v1/facilities/{id}/status`, `/cost-today`, `/tariff` for dashboards/bot | `ORIGINAL_REQUEST` §R4 |
-| **F21** | Proactive Peak Breach Alert Generation | M5 | Automated triggering of proactive alerts when load breaches kW threshold during peak rates | `ORIGINAL_REQUEST` §R3 |
-| **F22** | Greek Alert Notification Templates | M5 | Greek messages with kW, peak window, estimated € penalty, and tailored advice | `ORIGINAL_REQUEST` §R3 |
-| **F23** | Alert Throttling, Cooldown & Hysteresis | M5 | 3-sample debounce, 30-min cooldown, $\ge 25\%$ escalation jump, 10% release hysteresis | `ORIGINAL_REQUEST` §R3 |
-| **F24** | Telegram Bot Greek Command Handlers | M5 | Interactive commands (`/start`, `/status`, `/cost_today`, `/tariff`, `/settings`, `/help`) | `ORIGINAL_REQUEST` §R3 |
-| **F25** | Dual Telegram Client Architecture | M5 | `MockTelegramClient` for deterministic offline testing + `LiveTelegramClient` for production | `ORIGINAL_REQUEST` §R3 |
-| **F26** | Commercial Telemetry Simulator CLI | M6 | Parametric simulation for Commercial Bakery, Cold Storage, and Boutique Hotel | `ORIGINAL_REQUEST` §R4 |
-| **F27** | Simulator Fast-Forward & Breach Triggering | M6 | Configurable time-compression (`--speed`), Gaussian noise (`--noise`), and breach injection | `ORIGINAL_REQUEST` §R4 |
-| **F28** | Hardware Wiring Schematics & Safety Guide | M7 | Complete circuit diagrams, SCT-013 CT clamp connections, burden resistor sizing, and safety rules | Acceptance Criteria |
-| **F29** | System Deployment & Operation Guide | M7 | Production setup guide with PlatformIO, systemd, `.env`, Telegram bot setup, and runbook | Acceptance Criteria |
-| **F30** | End-to-End Automated Integration Test Suite | M7 | Standalone automated script executing under 30s, verifying full pipeline from simulator to alert | Acceptance Criteria |
-| **F31** | Live Greek Energy Market Price Ingestion | E1 | Scraping of monthly RAE Green tariffs & 24h HEnEx DAM spot prices with 4-tier caching (RAM, SQLite, Seed, Algorithmic) | Expansion §R1 |
-| **F32** | Unified Multi-Channel Alerting & Viber Bot | E2 | Multi-channel dispatching (`telegram`, `viber`, `both`), `MockViberClient`, live Viber webhook handling, and HMAC signature check | Expansion §R2 |
-| **F33** | Interactive Real-Time Web Dashboard | E3 | Responsive Single-Page UI at `/dashboard` with 3-phase live metrics, DEDDIE badges, 24h Chart.js load curve, and threshold configuration | Expansion §R3 |
+| # | Feature | Subsystem | Description |
+|---|---|---|---|
+| **F01** | ESP32 Analog Sampling & ADC1 Pinout | Firmware | Non-invasive CT sampling using ADC1 (GPIO 34, 35, 32), DC bias (1.65V), avoiding Wi-Fi ADC2 conflict |
+| **F02** | SCT-013 Burden Resistor Derivation | Firmware | Exact derivation for SCT-013-000 ($18\,\Omega$ for 3.3V, $22\,\Omega$ for 5V) and SCT-013-030 internal burden |
+| **F03** | 3-Phase Electrical Power Calculations | Firmware | Computation of True RMS current, active power ($P$), apparent power ($S$), power factor ($\cos\varphi$) |
+| **F04** | Trapezoidal Cumulative Energy Integration | Firmware | Real-time numeric integration of active power into cumulative kWh |
+| **F05** | ESP32 Wi-Fi & Reconnection Resilience | Firmware | Automatic exponential backoff reconnection for Wi-Fi and HTTPS/MQTT endpoints |
+| **F06** | ESP32 Telemetry Store-and-Forward | Firmware | In-memory ring buffer holding telemetry readings during temporary network dropouts |
+| **F07** | PlatformIO Clean Build Configuration | Firmware | Clean compilable `platformio.ini` for `esp32dev` board without warnings/errors |
+| **F08** | Greek Tariff Contract Γ21 (LV Commercial) | Tariff Engine | Single-rate commercial tariff modeling for $\le 25\text{ kVA}$ connections |
+| **F09** | Greek Tariff Contract Γ22 (Dual Rate) | Tariff Engine | Commercial dual-rate tariff modeling with DEDDIE peak and off-peak windows |
+| **F10** | Greek Tariff Contract Γ23 (MV Commercial) | Tariff Engine | Medium voltage commercial structure modeling ($> 250\text{ kVA}$) |
+| **F11** | Green Tariff Fluctuation Mechanism | Tariff Engine | Official Law 5068/2023 / MD ΥΠΕΝ formula with TEA, $\alpha$, $L_u$, $L_l$, $\beta$ parameters |
+| **F12** | Yellow & Dynamic Hourly Spot Tariff | Tariff Engine | Day-Ahead Market (DAM) hourly spot price indexing with supplier margins |
+| **F13** | Regulated Charges Modeling | Tariff Engine | DEDDIE distribution, ADMIE transmission, ETMEAR, YKO, EFK, DETE, and 6% VAT |
+| **F14** | Capacity Excess & Power Factor Penalties | Tariff Engine | Penalties for exceeding contracted kVA and $\cos\varphi < 0.85$ distribution multiplier |
+| **F15** | Real-Time Running Cost (€/h) & Daily Spend | Tariff Engine | Instantaneous €/h calculation, daily spend accumulator, and baseline delta |
+| **F16** | Projected Peak-Hour Surcharge Calculation | Tariff Engine | Mathematical projection of excess cost during active peak tariff windows |
+| **F17** | Backend Telemetry Ingestion API | Backend | FastAPI REST endpoint (`POST /api/v1/telemetry`) with Pydantic v2 payload validation |
+| **F18** | Electrical Invariant Validation | Backend | Strict backend checks ensuring $\vert P_{tot} - \sum P_i \vert \le 0.05\text{ kW}$ and $\cos\varphi \in [-1, 1]$ |
+| **F19** | SQLite Time-Series Storage | Backend | High-throughput SQLite storage with WAL mode, facility indexing, and query APIs |
+| **F20** | Facility Status & Cost Endpoints | Backend | `GET /api/v1/facilities/{id}/status`, `/cost-today`, `/tariff` for dashboards and bot queries |
+| **F21** | Proactive Peak Breach Alert Generation | Alerting | Automated triggering of proactive alerts when load breaches kW threshold during peak rates |
+| **F22** | Greek Alert Notification Templates | Alerting | Greek messages with kW, peak window, estimated € penalty, and tailored curtailment advice |
+| **F23** | Alert Throttling, Cooldown & Hysteresis | Alerting | 3-sample debounce, 30-min cooldown, $\ge 25\%$ escalation jump, 10% release hysteresis |
+| **F24** | Telegram Bot Greek Command Handlers | Alerting | Interactive commands (`/start`, `/status`, `/cost_today`, `/tariff`, `/settings`, `/help`) |
+| **F25** | Dual Telegram Client Architecture | Alerting | `MockTelegramClient` for deterministic offline testing + `LiveTelegramClient` for production |
+| **F26** | Commercial Telemetry Simulator CLI | Simulator | Parametric simulation for Commercial Bakery, Cold Storage, and Boutique Hotel |
+| **F27** | Simulator Fast-Forward & Breach Triggering | Simulator | Configurable time-compression (`--speed`), Gaussian noise (`--noise`), and breach injection |
+| **F28** | Hardware Wiring Schematics & Safety Guide | Hardware | Complete circuit diagrams, SCT-013 CT clamp connections, burden resistor sizing, and safety rules |
+| **F29** | System Deployment & Operation Guide | Deployment | Production setup guide with PlatformIO, systemd, `.env`, Telegram bot setup, and runbook |
+| **F30** | End-to-End Automated Integration Test Suite | Testing | Standalone automated script executing under 30s, verifying full pipeline from simulator to alert |
+| **F31** | Live Greek Energy Market Price Ingestion | Market Feeds | Scraping of monthly RAE Green tariffs & 24h HEnEx DAM spot prices with 4-tier caching |
+| **F32** | Unified Multi-Channel Alerting & Viber Bot | Alerting | Multi-channel dispatching (`telegram`, `viber`, `both`), `MockViberClient`, live Viber webhook, HMAC check |
+| **F33** | Interactive Real-Time Web Dashboard | Dashboard UI | Responsive Single-Page UI at `/dashboard` with 3-phase live metrics, DEDDIE badges, 24h load curve |
 
 ---
 
@@ -185,7 +185,7 @@ python -m simulator.cli --profile bakery --speed 60x --url http://localhost:8000
 - **Phase L1:** GPIO 34 (`ADC1_CH6`)
 - **Phase L2:** GPIO 35 (`ADC1_CH7`)
 - **Phase L3:** GPIO 32 (`ADC1_CH4`)
-- ⚠️ **ADC2 CANNOT BE USED:** The ESP32 Wi-Fi RF driver locks ADC2. Sampling ADC2 pins causes Wi-Fi disconnects and measurement errors.
+- **ADC2 Restriction:** The ESP32 Wi-Fi RF driver locks ADC2. Sampling ADC2 pins causes Wi-Fi disconnects and measurement errors.
 
 ### 4.3 Open CT Hazard & Electrical Safety (ELOT 60364)
 - When a CT secondary is open-circuit ($Z \to \infty$), the core saturates and induces lethal voltage spikes ($> 1000\text{ V}$).
@@ -265,8 +265,8 @@ Includes exact DEDDIE distribution charges, ADMIE transmission charges, ETMEAR r
 ### 7.1 Proactive Alert State Machine
 - **3-Sample Debounce Filter:** 3 consecutive telemetry readings above threshold within a peak window are required before triggering an alert (prevents false alarms from motor inrush currents).
 - **30-Minute Cooldown Period:** Suppresses duplicate notifications while a breach persists.
-- **$\ge 25\%$ Sudden Escalation Bypass:** If load jumps $\ge 25\%$ above the previous alerted load, the cooldown is broken immediately to deliver a Critical Escalation alert (`⚠️ ΚΛΙΜΑΚΩΣΗ ΥΠΕΡΒΑΣΗΣ`).
-- **10% Release Hysteresis Recovery:** The facility state clears back to normal only when load drops $\le 0.90 \times \text{threshold}$, dispatching a Normalization recovery alert (`✅ ΟΜΑΛΟΠΟΙΗΣΗ ΚΑΤΑΝΑΛΩΣΗΣ`).
+- **$\ge 25\%$ Sudden Escalation Bypass:** If load jumps $\ge 25\%$ above the previous alerted load, the cooldown is broken immediately to deliver an Escalation alert (`ΚΛΙΜΑΚΩΣΗ ΥΠΕΡΒΑΣΗΣ`).
+- **10% Release Hysteresis Recovery:** The facility state clears back to normal only when load drops $\le 0.90 \times \text{threshold}$, dispatching a Normalization recovery alert (`ΟΜΑΛΟΠΟΙΗΣΗ ΚΑΤΑΝΑΛΩΣΗΣ`).
 
 ### 7.2 Tailored Curtailment Guidance
 - **Commercial Bakery:** `"Πρόταση: Μεταφέρετε το ψήσιμο παρτίδας στη ζώνη μειωμένης χρέωσης ή σβήστε προσωρινά 1 φούρνο."`
@@ -277,10 +277,10 @@ Includes exact DEDDIE distribution charges, ADMIE transmission charges, ETMEAR r
 
 | Command | Description | Example Output |
 |---|---|---|
-| `/status` | 3-phase voltages, currents, active kW, kVA, cos φ, €/h running cost, active zone | `⚡ Συνολική Ισχύς: 17.90 kW \| 💶 Τρέχον Κόστος: 4.39 €/h \| ⏰ Ζώνη Αιχμής` |
-| `/cost_today` | Today's accumulated kWh, total spend (€), peak surcharge (€), average rate | `⚡ Ενέργεια: 240.5 kWh \| 💶 Κόστος: 48.60 € \| 📉 Μέση Τιμή: 0.202 €/kWh` |
-| `/tariff` | Contract type, color, contracted kVA, peak threshold kW, DEDDIE schedule | `📋 Τύπος: Γ22 \| Χρώμα: Πράσινο \| Συμφωνημένη: 35 kVA \| Όριο: 22.0 kW` |
-| `/settings` | Thresholds, cooldown minutes, 90% hysteresis limit, debounce samples, Chat ID | `⚙️ Όριο: 22.0 kW \| Cooldown: 30 λεπτά \| Υστέρηση: 90% (19.8 kW)` |
+| `/status` | 3-phase voltages, currents, active kW, kVA, cos φ, €/h running cost, active zone | `Συνολική Ισχύς: 17.90 kW \| Τρέχον Κόστος: 4.39 €/h \| Ζώνη Αιχμής` |
+| `/cost_today` | Today's accumulated kWh, total spend (€), peak surcharge (€), average rate | `Ενέργεια: 240.5 kWh \| Κόστος: 48.60 € \| Μέση Τιμή: 0.202 €/kWh` |
+| `/tariff` | Contract type, color, contracted kVA, peak threshold kW, DEDDIE schedule | `Τύπος: Γ22 \| Χρώμα: Πράσινο \| Συμφωνημένη: 35 kVA \| Όριο: 22.0 kW` |
+| `/settings` | Thresholds, cooldown minutes, 90% hysteresis limit, debounce samples, Chat ID | `Όριο: 22.0 kW \| Cooldown: 30 λεπτά \| Υστέρηση: 90% (19.8 kW)` |
 | `/help` | Complete command guide in Greek | Comprehensive command directory |
 | `/start` | System overview and introductory message | Welcome message and available command list |
 
@@ -308,7 +308,7 @@ python -m simulator.cli [OPTIONS]
 
 ## 9. Verification & Automated Testing
 
-### 9.1 Complete Test Suite (333 Unit, Integration & Tiered E2E Tests)
+### 9.1 Complete Test Suite (438 Unit, Integration & Tiered E2E Tests)
 ```bash
 pytest -v
 ```

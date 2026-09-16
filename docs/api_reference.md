@@ -249,7 +249,7 @@ Directly dispatches a plain-text notification to a Viber recipient.
 ```json
 {
   "receiver_id": "viber_user_123",
-  "text": "⚠️ Προσοχή: Υπέρβαση ορίου 24.5 kW",
+  "text": "Προσοχή: Υπέρβαση ορίου 24.5 kW",
   "sender_name": "EMS Alert Bot"
 }
 ```

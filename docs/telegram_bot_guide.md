@@ -75,17 +75,17 @@ To deliver proactive alerts, the system needs the destination Chat ID (individua
 Dispatched when load breaches the configured threshold during high-tariff windows after the 3-sample debounce filter passes:
 
 ```
-🚨 ΠΡΟΣΟΧΗ: ΥΠΕΡΒΑΣΗ ΟΡΙΟΥ ΣΕ ΖΩΝΗ ΑΙΧΜΗΣ
+[ΠΡΟΣΟΧΗ: ΥΠΕΡΒΑΣΗ ΟΡΙΟΥ ΣΕ ΖΩΝΗ ΑΙΧΜΗΣ]
 
 Εγκατάσταση: Bakery Central Athens
 Συνολικό Φορτίο: 32.5 kW (Όριο: 22.0 kW)
 Υπέρβαση: +10.5 kW
 
-⏰ Ζώνη Αιχμής: 14:00 - 17:00 (Τιμολόγιο Γ22 Πράσινο)
-💶 Τρέχουσα Χρέωση: 0.2450 €/kWh
-⚠️ Εκτιμώμενη Επιπλέον Επιβάρυνση Σήμερα: +1.68 €
+Ζώνη Αιχμής: 14:00 - 17:00 (Τιμολόγιο Γ22 Πράσινο)
+Τρέχουσα Χρέωση: 0.2450 €/kWh
+Εκτιμώμενη Επιπλέον Επιβάρυνση Σήμερα: +1.68 €
 
-💡 Προτεινόμενη Ενέργεια:
+Προτεινόμενη Ενέργεια:
 Μεταφέρετε το ψήσιμο παρτίδας στη ζώνη μειωμένης χρέωσης ή σβήστε προσωρινά 1 φούρνο.
 ```
 
@@ -95,14 +95,14 @@ Dispatched when load breaches the configured threshold during high-tariff window
 Triggered if the load jumps $\ge 25\%$ higher even during an active 30-minute cooldown window:
 
 ```
-⚠️ ΚΛΙΜΑΚΩΣΗ ΥΠΕΡΒΑΣΗΣ ΦΟΡΤΙΟΥ
+[ΚΛΙΜΑΚΩΣΗ ΥΠΕΡΒΑΣΗΣ ΦΟΡΤΙΟΥ]
 
 Εγκατάσταση: Bakery Central Athens
 Προηγούμενο Φορτίο: 24.0 kW
-Νέο Φορτίο: 36.2 kW (+50.8% άλμα!)
+Νέο Φορτίο: 36.2 kW (+50.8% άλμα)
 Συμφωνημένη Ισχύς: 35.0 kVA
 
-🚨 Κίνδυνος υπέρβασης συμφωνημένης ισχύος και ενεργοποίησης προστίμου ισχύος ΔΕΔΔΗΕ!
+Κίνδυνος υπέρβασης συμφωνημένης ισχύος και ενεργοποίησης προστίμου ισχύος ΔΕΔΔΗΕ.
 ```
 
 ---
@@ -111,7 +111,7 @@ Triggered if the load jumps $\ge 25\%$ higher even during an active 30-minute co
 Dispatched once load drops below the 10% hysteresis threshold ($0.90 \times 22.0 = 19.8\text{ kW}$):
 
 ```
-✅ ΟΜΑΛΟΠΟΙΗΣΗ ΚΑΤΑΝΑΛΩΣΗΣ
+[ΟΜΑΛΟΠΟΙΗΣΗ ΚΑΤΑΝΑΛΩΣΗΣ]
 
 Εγκατάσταση: Bakery Central Athens
 Τρέχον Φορτίο: 18.2 kW (Εντός ορίων <= 19.8 kW)
@@ -126,7 +126,7 @@ Dispatched once load drops below the 10% hysteresis threshold ($0.90 \times 22.0
 
 ### `/status`
 ```text
-⚡ ΚΑΤΑΣΤΑΣΗ ΕΓΚΑΤΑΣΤΑΣΗΣ: Bakery Central Athens
+ΚΑΤΑΣΤΑΣΗ ΕΓΚΑΤΑΣΤΑΣΗΣ: Bakery Central Athens
 ----------------------------------------
 Φάση L1: 230.2 V | 26.4 A | 5.95 kW (cos φ: 0.98)
 Φάση L2: 229.8 V | 25.8 A | 5.82 kW (cos φ: 0.98)
@@ -136,14 +136,14 @@ Dispatched once load drops below the 10% hysteresis threshold ($0.90 \times 22.0
 Σύνολο Φαινομενικής: 18.27 kVA
 Συντελεστής Ισχύος Συστήματος: 0.98
 
-💶 Στιγμιαίο Κόστος: 4.39 €/ώρα
-⏰ Ζώνη: Αιχμή (14:00 - 17:00) | Όριο: 22.0 kW
-🟢 Κατάσταση: Εντός Ορίου
+Στιγμιαίο Κόστος: 4.39 €/ώρα
+Ζώνη: Αιχμή (14:00 - 17:00) | Όριο: 22.0 kW
+Κατάσταση: Εντός Ορίου
 ```
 
 ### `/cost_today`
 ```text
-📊 ΕΝΕΡΓΕΙΑΚΟΣ ΑΠΟΛΟΓΙΣΜΟΣ ΗΜΕΡΑΣ (14/09/2026)
+ΕΝΕΡΓΕΙΑΚΟΣ ΑΠΟΛΟΓΙΣΜΟΣ ΗΜΕΡΑΣ (14/09/2026)
 ----------------------------------------
 Εγκατάσταση: Bakery Central Athens
 Συνολική Ενέργεια: 240.50 kWh
@@ -159,7 +159,7 @@ Dispatched once load drops below the 10% hysteresis threshold ($0.90 \times 22.0
 
 ### `/tariff`
 ```text
-📋 ΠΡΟΦΙΛ ΤΙΜΟΛΟΓΙΟΥ
+ΠΡΟΦΙΛ ΤΙΜΟΛΟΓΙΟΥ
 ----------------------------------------
 Εγκατάσταση: Bakery Central Athens
 Συμβόλαιο: Γ22 (Χαμηλή Τάση, Εμπορικό Διπλής Χρέωσης)

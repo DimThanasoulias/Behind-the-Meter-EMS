@@ -60,9 +60,7 @@ from tariff_engine import (
     is_power_factor_penalized,
 )
 
-# ==============================================================================
-# 1. Contracts & Time-of-Use Schedules
-# ==============================================================================
+# --- 1. Contracts & Time-of-Use Schedules ---
 
 class TestContractsAndTOU:
     def test_contract_enum_values_and_parsing(self):
@@ -195,9 +193,7 @@ class TestContractsAndTOU:
         assert get_remaining_peak_hours(dt_weekend) == 0.0
 
 
-# ==============================================================================
-# 2. Green Tariff Fluctuation Mechanism (Law 5068/2023)
-# ==============================================================================
+# --- 2. Green Tariff Fluctuation Mechanism (Law 5068/2023) ---
 
 class TestGreenTariff:
     def test_normal_band_no_fluctuation(self):
@@ -272,9 +268,7 @@ class TestGreenTariff:
         assert rate == round(0.150 * 0.95, 5)
 
 
-# ==============================================================================
-# 3. Yellow & Dynamic Day-Ahead Market Spot Pricing
-# ==============================================================================
+# --- 3. Yellow & Dynamic Day-Ahead Market Spot Pricing ---
 
 class TestYellowDynamicTariff:
     def test_yellow_tariff_calculation(self):
@@ -313,9 +307,7 @@ class TestYellowDynamicTariff:
         assert engine.compute_yellow(100.0) == 0.160
 
 
-# ==============================================================================
-# 4. Regulated Network Charges
-# ==============================================================================
+# --- 4. Regulated Network Charges ---
 
 class TestRegulatedCharges:
     def test_regulated_constants(self):
@@ -364,9 +356,7 @@ class TestRegulatedCharges:
         assert breakdown.pf_multiplier == 1.0
 
 
-# ==============================================================================
-# 5. Penalties: Power Factor and Capacity Excess
-# ==============================================================================
+# --- 5. Penalties: Power Factor and Capacity Excess ---
 
 class TestPenalties:
     def test_power_factor_no_penalty(self):
@@ -431,9 +421,7 @@ class TestPenalties:
         assert is_capacity_exceeded(35.1, 35.0)
 
 
-# ==============================================================================
-# 6. Real-Time Cost & Penalty Projection Engine
-# ==============================================================================
+# --- 6. Real-Time Cost & Penalty Projection Engine ---
 
 class TestCostCalculator:
     def test_realtime_cost_zero_power(self):

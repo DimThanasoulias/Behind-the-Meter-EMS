@@ -1,6 +1,6 @@
-"""Adversarial stress-test suite for Milestone E1: Live Greek Energy Market & Tariff Ingestion Engine.
+"""Adversarial stress-test suite for live Greek energy market & tariff ingestion.
 
-Challenger 1 Stress Harness:
+Test scenarios:
 1. Network timeouts (ConnectTimeout, ReadTimeout) and connection drops
 2. Corrupt/malformed JSON & CSV payloads from market sources
 3. NaN and extreme price spikes / negative prices (-500 to +3000 €/MWh boundary checks)
@@ -36,9 +36,7 @@ from backend.market.service import MarketPriceService
 from tariff_engine.cost_calculator import calculate_realtime_cost
 
 
-# ==============================================================================
-# Helper Mock Clients for Adversarial Testing
-# ==============================================================================
+# --- Helper Mock Clients for Adversarial Testing ---
 
 class TimeoutMarketClient(IMarketClient):
     """Client simulating network timeouts (ConnectTimeout and ReadTimeout)."""
@@ -100,9 +98,7 @@ class CorruptPayloadMarketClient(IMarketClient):
         return []
 
 
-# ==============================================================================
-# Dimension 1: Network Timeouts & Offline Drops Stress Tests
-# ==============================================================================
+# --- Dimension 1: Network Timeouts & Offline Drops Stress Tests ---
 
 class TestNetworkTimeoutsAndDrops:
     """Stress-test resilience against timeouts and network drops."""
@@ -154,9 +150,7 @@ class TestNetworkTimeoutsAndDrops:
         assert service.green_source_mode == "fallback_seed"
 
 
-# ==============================================================================
-# Dimension 2: Extreme Price Spikes, Negative Prices & Boundary Checks
-# ==============================================================================
+# --- Dimension 2: Extreme Price Spikes, Negative Prices & Boundary Checks ---
 
 class TestExtremePricesAndSanityBounds:
     """Stress-test zero, negative, and extreme market clearing prices."""
@@ -238,9 +232,7 @@ class TestExtremePricesAndSanityBounds:
         assert cost_spike.running_cost_eur_per_h > (cost_normal.running_cost_eur_per_h + 20.0)
 
 
-# ==============================================================================
-# Dimension 3: Greek Daylight Saving Time Transitions (23h & 25h)
-# ==============================================================================
+# --- Dimension 3: Greek Daylight Saving Time Transitions (23h & 25h) ---
 
 class TestDaylightSavingTimeTransitions:
     """Stress-test Greek DST transitions: Spring 23-hour and Autumn 25-hour days."""
@@ -307,9 +299,7 @@ class TestDaylightSavingTimeTransitions:
         assert service.dam_source_mode == "fallback_seed"
 
 
-# ==============================================================================
-# Dimension 4: Corrupt Payloads & Defect Demonstration
-# ==============================================================================
+# --- Dimension 4: Corrupt Payloads & Defect Demonstration ---
 
 class TestCorruptPayloadsAndParserRobustness:
     """Stress-test how market parsers and service handle corrupt data feeds."""

@@ -23,9 +23,7 @@ from bot.telegram_client import MockTelegramClient
 from bot.viber_client import LiveViberClient, MockViberClient
 
 
-# ==============================================================================
-# MockViberClient Tests
-# ==============================================================================
+# --- MockViberClient Tests ---
 
 @pytest.mark.anyio
 async def test_mock_viber_client_send_and_inspect():
@@ -58,9 +56,7 @@ async def test_mock_viber_client_send_and_inspect():
     assert len(client.get_sent_messages()) == 0
 
 
-# ==============================================================================
-# LiveViberClient Tests
-# ==============================================================================
+# --- LiveViberClient Tests ---
 
 @pytest.mark.anyio
 async def test_live_viber_client_missing_params():
@@ -125,9 +121,7 @@ async def test_live_viber_client_http_500():
         assert success is False
 
 
-# ==============================================================================
-# Multi-Channel Alert Dispatcher Tests
-# ==============================================================================
+# --- Multi-Channel Alert Dispatcher Tests ---
 
 @pytest.fixture
 def mock_clients():

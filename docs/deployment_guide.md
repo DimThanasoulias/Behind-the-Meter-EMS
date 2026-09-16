@@ -301,17 +301,17 @@ Greek Commercial Behind-the-Meter EMS: Standalone E2E Verification Runner
 Mode: In-Process TestClient
 Target Commercial Profile: BAKERY
 ================================================================================
-[1/9] ✅ PASS | System Health & Facility Seeding               |   16.4 ms | 3 default facilities verified
-[2/9] ✅ PASS | Normal Baseline Ingestion (< Threshold)        |    9.5 ms | P=14.5 kW, Cost=3.62 €/h
-[3/9] ✅ PASS | 3-Sample Debounce Breach Filtering             |   29.0 ms | Filter verified: s1=False, s2=False, s3=TRIGGERED
-[4/9] ✅ PASS | Tariff Cost & Peak Penalty Calculation         |    0.0 ms | Excess=10.5 kW, Penalty=1.68 €
-[5/9] ✅ PASS | Greek Telegram Notification Formatting         |    0.0 ms | Greek header, window, € penalty & advice verified
-[6/9] ✅ PASS | Alert Throttling & Cooldown Suppression        |    9.9 ms | Duplicate breach suppressed during 1800s cooldown
-[7/9] ✅ PASS | 10% Release Hysteresis Recovery                |    9.9 ms | Load dropped <= 19.8 kW -> Recovery alert dispatched
-[8/9] ✅ PASS | Facility Status & Cost Reporting APIs          |   23.6 ms | Total kWh=0.40, Spend=0.10 €
-[9/9] ✅ PASS | Execution Benchmark (< 30.0s)                  |  603.9 ms | Total: 0.60s
+[1/9] [PASS] | System Health & Facility Seeding               |   16.4 ms | 3 default facilities verified
+[2/9] [PASS] | Normal Baseline Ingestion (< Threshold)        |    9.5 ms | P=14.5 kW, Cost=3.62 €/h
+[3/9] [PASS] | 3-Sample Debounce Breach Filtering             |   29.0 ms | Filter verified: s1=False, s2=False, s3=TRIGGERED
+[4/9] [PASS] | Tariff Cost & Peak Penalty Calculation         |    0.0 ms | Excess=10.5 kW, Penalty=1.68 €
+[5/9] [PASS] | Greek Telegram Notification Formatting         |    0.0 ms | Greek header, window, € penalty & advice verified
+[6/9] [PASS] | Alert Throttling & Cooldown Suppression        |    9.9 ms | Duplicate breach suppressed during 1800s cooldown
+[7/9] [PASS] | 10% Release Hysteresis Recovery                |    9.9 ms | Load dropped <= 19.8 kW -> Recovery alert dispatched
+[8/9] [PASS] | Facility Status & Cost Reporting APIs          |   23.6 ms | Total kWh=0.40, Spend=0.10 €
+[9/9] [PASS] | Execution Benchmark (< 30.0s)                  |  603.9 ms | Total: 0.60s
 ================================================================================
-🎉 ALL VERIFICATION CRITERIA MET (Exit Code 0)
+ALL VERIFICATION CRITERIA MET (Exit Code 0)
 ```
 
 ---
