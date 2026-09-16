@@ -22,6 +22,7 @@ from backend.database.sqlite_store import SQLiteStore, get_store
 from backend.models.telemetry import TelemetryPayload
 from tariff_engine import (
     calculate_realtime_cost,
+    resolve_effective_tea,
 )
 
 logger = logging.getLogger(__name__)
@@ -90,6 +91,7 @@ async def ingest_telemetry(
     payload: TelemetryPayload,
     store: Annotated[SQLiteStore, Depends(get_database_store)],
     dispatcher: Annotated[AlertDispatcher, Depends(get_alert_dispatcher)],
+    request: Request,
 ) -> IngestionResponse:
     """Ingests 3-phase CT-clamp telemetry from ESP32 or simulator:
 
@@ -138,6 +140,22 @@ async def ingest_telemetry(
     else:
         energy_delta = 0.0
 
+    # Resolve dynamic market rate via market feed adapter
+    market_svc = None
+    if request is not None and hasattr(request, "app") and hasattr(request.app.state, "market_service"):
+        market_svc = request.app.state.market_service
+    if market_svc is None:
+        from backend.market.service import get_market_service
+        market_svc = get_market_service(store=store)
+
+    effective_tea = resolve_effective_tea(
+        timestamp=payload.timestamp,
+        tariff_color=facility_config.get("tariff_color", "green"),
+        contract_type=facility_config.get("contract_type", "G22"),
+        supplier_id=facility_config.get("supplier_id", "dei"),
+        market_service=market_svc,
+    )
+
     # Calculate real-time electricity cost via tariff engine
     profile_obj = SimpleNamespace(**facility_config)
     cost_res = calculate_realtime_cost(
@@ -145,6 +163,7 @@ async def ingest_telemetry(
         energy_kwh_delta=energy_delta,
         timestamp=payload.timestamp,
         tariff_profile=profile_obj,
+        tea_eur_mwh=effective_tea,
         power_factor=payload.system_power_factor,
         contracted_kva=facility_config.get("contracted_kva", 35.0),
     )

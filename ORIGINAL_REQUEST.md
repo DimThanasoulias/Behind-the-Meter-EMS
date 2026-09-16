@@ -48,3 +48,52 @@ Provide a lightweight backend (FastAPI / Python or Express / Node.js) that expos
 ### Verification & Automated Testing
 - [ ] A dedicated end-to-end integration test script runs automatically, spins up the mock telemetry generator, feeds data into the backend, and validates that alert events and cost calculations are triggered accurately.
 - [ ] Comprehensive documentation (README.md) detailing hardware setup (wiring schematics for 3-phase CT clamps, burden resistors, safety) and software deployment instructions.
+
+## 2026-09-15T09:58:54Z
+
+Enhance the Greek Commercial Behind-the-Meter Energy Management System (EMS) in e:\project1 with automated Greek energy market price ingestion (RAE monthly Green tariffs & HEnEx Day-Ahead hourly spot rates), unified dual-channel alerting (adding Viber Bot alongside Telegram), and a responsive real-time Web Dashboard UI for live monitoring and cost analytics.
+
+Working directory: e:\project1
+Integrity mode: development
+
+## Requirements
+
+### R1. Live Greek Energy Market & Tariff Ingestion Engine
+Implement automated data retrieval and caching for Greek electricity market pricing:
+- Automated ingestion/scraping of official monthly Green Tariff announcements from RAE (energycost.gr / RAE pricing feeds) on the 1st of each month.
+- Daily retrieval of 24-hour Day-Ahead Market (DAM) hourly clearing prices from the Hellenic Energy Exchange (HEnEx / ENEX / IPTO feeds) with caching and local fallback when offline.
+- Dynamic rate feeds directly updating the existing tariff calculation engine (tariff_engine/).
+
+### R2. Unified Multi-Channel Alerting & Viber Bot Integration
+Extend the notification subsystem to support both Telegram and Viber:
+- A unified notification dispatcher that abstracts the delivery platform (supporting per-facility channel preference: Telegram, Viber, or Both).
+- Viber Bot API adapter supporting outgoing proactive alerts, webhook callback handling for interactive commands, and localized Greek alert formatting.
+- MockViberClient mirroring MockTelegramClient for 100% offline, deterministic automated testing.
+
+### R3. Interactive Real-Time Web Dashboard (UI)
+Build a clean, responsive web dashboard served directly by the FastAPI backend (e.g. at /dashboard):
+- Real-time gauge / display of 3-phase active power (kW), voltage, current, and system power factor (cos φ).
+- Live tariff indicator showing active time window (DEDDIE Peak / Normal / Reduced), current running cost (€/h), and today's accumulated spend (€).
+- Interactive timeline chart displaying daily power draw vs peak surcharge threshold.
+- Quick configuration panel allowing business owners to view and adjust threshold kW and alert preferences.
+
+## Acceptance Criteria
+
+### Market Tariff Ingestion
+- [ ] Ingestion engine successfully parses and caches RAE monthly rates and 24-hour HEnEx hourly spot price curves.
+- [ ] Graceful fallback to cached or default tariff rates if remote market endpoints are unreachable.
+
+### Viber & Multi-Channel Alerting
+- [ ] Viber adapter formats and dispatches proactive peak breach, escalation, and normalization alerts matching Greek templates.
+- [ ] Facility configuration allows setting notification target to Telegram, Viber, or Both.
+- [ ] MockViberClient records sent messages and integrates with existing integration test suites.
+
+### Web Dashboard
+- [ ] Dashboard route (/dashboard) renders correctly without build step errors, displaying live facility status and metrics.
+- [ ] Dynamic updates reflect simulated or live telemetry within 1 second.
+- [ ] Chart correctly renders the 24-hour load curve with clear visual indication of the peak threshold.
+
+### Testing & Regression
+- [ ] All existing 333 tests remain 100% passing with zero regressions.
+- [ ] New unit and integration tests cover market ingestion, Viber dispatching, and dashboard endpoints.
+- [ ] Updated README.md and docs reflecting the new capabilities and configuration options.

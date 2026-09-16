@@ -217,7 +217,71 @@ Returns detailed tariff contract specifications, current pricing components, and
 
 ---
 
-## 3. Health & Diagnostics
+## 3. Energy Market & Dynamic Tariffs
+
+### `GET /api/v1/market/dam-prices`
+Query 24-hour Day-Ahead Market (DAM) hourly clearing prices from the Hellenic Energy Exchange (HEnEx) with 4-tier caching (RAM, SQLite, Seed, Algorithmic).
+
+- **Query Parameters:** `date` (YYYY-MM-DD, defaults to current date)
+- **Response:** JSON list of 24 hourly prices (€/MWh and €/kWh), summary stats (min, max, average), and cache tier source.
+
+### `GET /api/v1/market/green-tariffs`
+Query official RAE green tariff announcements under Law 5068/2023.
+
+- **Query Parameters:** `month` (YYYY-MM, defaults to current month)
+- **Response:** JSON list of supplier tariffs with base charge, fluctuation formula parameters ($\alpha, L_u, L_l, \beta$), and final calculated €/kWh rate.
+
+### `GET /api/v1/market/effective-rate`
+Calculate effective retail rate combining market feeds and supplier margins.
+
+- **Query Parameters:** `contract_type` (Γ21, Γ22, Γ23), `tariff_color` (green, yellow, dynamic), `supplier_id` (dei, protergia, heron, etc.), `timestamp` (optional ISO 8601).
+
+---
+
+## 4. Multi-Channel Alerting & Viber Bot
+
+### `GET /api/v1/viber/status`
+Returns Viber bot operational status and client mode (`mock` or `live`).
+
+### `POST /api/v1/viber/send`
+Directly dispatches a plain-text notification to a Viber recipient.
+
+```json
+{
+  "receiver_id": "viber_user_123",
+  "text": "⚠️ Προσοχή: Υπέρβαση ορίου 24.5 kW",
+  "sender_name": "EMS Alert Bot"
+}
+```
+
+### `POST /api/v1/viber/webhook`
+Viber callback webhook endpoint handling setup pings (`event: webhook`), message commands (`/status`, `/cost_today`, `/tariff`, `/settings`, `/help`), and HMAC-SHA256 signature verification (`X-Viber-Content-Signature`).
+
+---
+
+## 5. Web Dashboard & Management
+
+### `GET /dashboard`
+Renders the self-contained Greek Commercial EMS Single-Page Web Dashboard served with Tailwind CSS and Chart.js.
+
+### `GET /api/v1/dashboard/metrics/{facility_id}`
+Returns aggregated live KPIs, 3-phase voltages and currents, active DEDDIE tariff status, running cost (€/h), today's spend (€), and 24-hour historical timeline points.
+
+### `POST /api/v1/dashboard/config/{facility_id}`
+Updates peak threshold (kW) and alert notification preferences (`telegram`, `viber`, or `both`) directly from the UI.
+
+```json
+{
+  "peak_threshold_kw": 25.0,
+  "notification_channel": "both",
+  "chat_id": 999111222,
+  "viber_receiver_id": "vb_usr_bakery_123"
+}
+```
+
+---
+
+## 6. Health & Diagnostics
 
 ### `GET /health`
 Liveness and readiness healthcheck probe.
@@ -229,22 +293,22 @@ Liveness and readiness healthcheck probe.
   "version": "0.1.0",
   "database": "connected",
   "active_facilities": 3,
-  "timestamp": "2026-09-14T15:30:00Z"
+  "timestamp": "2026-09-16T10:00:00Z"
 }
 ```
 
 ---
 
-## 4. cURL Examples
+## 7. cURL Examples
 
-### Post Telemetry Reading
+### Ingest Telemetry Reading
 ```bash
 curl -X POST http://localhost:8000/api/v1/telemetry \
   -H "Content-Type: application/json" \
   -d '{
     "device_id": "esp32-001",
     "facility_id": "bakery-central-athens",
-    "timestamp": "2026-09-14T15:00:00Z",
+    "timestamp": "2026-09-16T15:00:00Z",
     "phases": {
       "L1": {"voltage_v": 230.0, "current_a": 20.0, "active_power_kw": 4.6, "apparent_power_kva": 4.6, "power_factor": 1.0},
       "L2": {"voltage_v": 230.0, "current_a": 20.0, "active_power_kw": 4.6, "apparent_power_kva": 4.6, "power_factor": 1.0},
@@ -257,12 +321,5 @@ curl -X POST http://localhost:8000/api/v1/telemetry \
   }'
 ```
 
-### Query Facility Status
-```bash
-curl -X GET http://localhost:8000/api/v1/facilities/bakery-central-athens/status
-```
-
-### Query Today's Cost
-```bash
-curl -X GET "http://localhost:8000/api/v1/facilities/bakery-central-athens/cost-today?date=2026-09-14"
-```
+### Access Web Dashboard
+Open in your browser: `http://localhost:8000/dashboard`

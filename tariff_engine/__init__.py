@@ -63,6 +63,10 @@ from .regulated_charges import (
     calculate_regulated_unit_rate,
     get_regulated_breakdown,
 )
+from .market_feed import (
+    BaseMarketFeed,
+    resolve_effective_tea,
+)
 from .yellow_dynamic import (
     YellowDynamicEngine,
     calculate_dynamic_tariff,
@@ -83,6 +87,7 @@ __all__ = [
     "POWER_FACTOR_THRESHOLD",
     "VAT_RATE",
     "YKO_RATE_EUR_KWH",
+    "BaseMarketFeed",
     "CapacityExcessResult",
     "ContractProfile",
     # Real-Time Cost
@@ -123,4 +128,5 @@ __all__ = [
     "is_offpeak_window",
     "is_peak_window",
     "is_power_factor_penalized",
+    "resolve_effective_tea",
 ]

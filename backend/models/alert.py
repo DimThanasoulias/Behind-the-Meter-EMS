@@ -78,6 +78,14 @@ class AlertThresholdConfig(BaseModel):
         default=None,
         description="Configured Telegram chat ID for facility notifications",
     )
+    viber_receiver_id: str | None = Field(
+        default=None,
+        description="Configured Viber receiver ID for facility notifications",
+    )
+    notification_channel: str = Field(
+        default="telegram",
+        description="Target messaging channel: 'telegram', 'viber', or 'both'",
+    )
 
     @property
     def warning_threshold_kw(self) -> float:

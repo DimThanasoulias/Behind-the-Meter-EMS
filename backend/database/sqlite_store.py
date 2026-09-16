@@ -89,6 +89,8 @@ CREATE TABLE IF NOT EXISTS facility_configs (
     hysteresis_factor REAL NOT NULL DEFAULT 0.90,
     debounce_samples INTEGER NOT NULL DEFAULT 3,
     chat_id INTEGER,
+    viber_receiver_id TEXT,
+    notification_channel TEXT NOT NULL DEFAULT 'telegram',
     created_at TEXT NOT NULL DEFAULT (datetime('now', 'utc')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now', 'utc'))
 );
@@ -134,6 +136,42 @@ ON telemetry_readings (facility_id, timestamp);
 
 CREATE INDEX IF NOT EXISTS idx_cost_aggregates_facility_date
 ON cost_aggregates (facility_id, date);
+
+-- 24-hour HEnEx Day-Ahead Market hourly clearing prices
+CREATE TABLE IF NOT EXISTS market_dam_hourly_prices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL,
+    hour INTEGER NOT NULL,
+    price_eur_mwh REAL NOT NULL,
+    price_eur_kwh REAL NOT NULL,
+    source TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', 'utc')),
+    UNIQUE(date, hour)
+);
+CREATE INDEX IF NOT EXISTS idx_dam_date_hour ON market_dam_hourly_prices(date, hour);
+
+-- Monthly RAE Green Tariff announcements (per supplier & contract)
+CREATE TABLE IF NOT EXISTS market_green_tariffs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    month TEXT NOT NULL,
+    supplier_id TEXT NOT NULL,
+    supplier_name TEXT NOT NULL,
+    contract_type TEXT NOT NULL,
+    p_base REAL NOT NULL,
+    e_disc REAL NOT NULL DEFAULT 0.0,
+    prompt_discount_percent REAL DEFAULT 0.0,
+    alpha REAL NOT NULL DEFAULT 1.15,
+    lu_eur_mwh REAL NOT NULL DEFAULT 115.0,
+    ll_eur_mwh REAL NOT NULL DEFAULT 95.0,
+    beta REAL NOT NULL DEFAULT 0.0,
+    fixed_monthly_fee_eur REAL NOT NULL DEFAULT 5.0,
+    published_final_rate_eur_per_kwh REAL NOT NULL,
+    tea_m1_eur_mwh REAL,
+    source TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now', 'utc')),
+    UNIQUE(month, supplier_id, contract_type)
+);
+CREATE INDEX IF NOT EXISTS idx_green_tariffs_month ON market_green_tariffs(month);
 """
 
 
@@ -171,6 +209,14 @@ class SQLiteStore:
     def _create_schema(self, conn: sqlite3.Connection) -> None:
         """Initialize database schema tables and indices."""
         conn.executescript(SCHEMA_SQL)
+        try:
+            conn.execute("ALTER TABLE facility_configs ADD COLUMN viber_receiver_id TEXT;")
+        except Exception:
+            pass
+        try:
+            conn.execute("ALTER TABLE facility_configs ADD COLUMN notification_channel TEXT NOT NULL DEFAULT 'telegram';")
+        except Exception:
+            pass
         conn.commit()
 
     @contextmanager
@@ -224,14 +270,16 @@ class SQLiteStore:
         hysteresis_factor = float(data.get("hysteresis_factor", 0.90))
         debounce_samples = int(data.get("debounce_samples", 3))
         chat_id = data.get("chat_id", data.get("telegram_chat_id"))
+        viber_receiver_id = data.get("viber_receiver_id", data.get("viber_chat_id"))
+        notification_channel = str(data.get("notification_channel", "telegram")).lower()
 
         query = """
         INSERT INTO facility_configs (
             facility_id, name, facility_type, contract_type, tariff_color,
             contracted_kva, peak_threshold_kw, warning_threshold_ratio,
             low_pf_threshold, cooldown_seconds, hysteresis_factor,
-            debounce_samples, chat_id, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'utc'))
+            debounce_samples, chat_id, viber_receiver_id, notification_channel, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'utc'))
         ON CONFLICT(facility_id) DO UPDATE SET
             name = excluded.name,
             facility_type = excluded.facility_type,
@@ -245,6 +293,8 @@ class SQLiteStore:
             hysteresis_factor = excluded.hysteresis_factor,
             debounce_samples = excluded.debounce_samples,
             chat_id = excluded.chat_id,
+            viber_receiver_id = excluded.viber_receiver_id,
+            notification_channel = excluded.notification_channel,
             updated_at = datetime('now', 'utc');
         """
         with self.connection() as conn:
@@ -264,6 +314,8 @@ class SQLiteStore:
                     hysteresis_factor,
                     debounce_samples,
                     chat_id,
+                    viber_receiver_id,
+                    notification_channel,
                 ),
             )
 
@@ -581,6 +633,167 @@ class SQLiteStore:
                 "average_rate_eur_per_kwh": 0.0,
             }
 
+    def store_dam_hourly_prices(self, prices: list[dict[str, Any] | Any]) -> int:
+        """Upsert 24-hour DAM hourly clearing prices."""
+        if not prices:
+            return 0
+        inserted = 0
+        with self.connection() as conn:
+            for p in prices:
+                item = p if isinstance(p, dict) else (p.model_dump() if hasattr(p, "model_dump") else dict(p))
+                conn.execute(
+                    """
+                    INSERT INTO market_dam_hourly_prices (
+                        date, hour, price_eur_mwh, price_eur_kwh, source, created_at
+                    ) VALUES (?, ?, ?, ?, ?, datetime('now', 'utc'))
+                    ON CONFLICT(date, hour) DO UPDATE SET
+                        price_eur_mwh = excluded.price_eur_mwh,
+                        price_eur_kwh = excluded.price_eur_kwh,
+                        source = excluded.source,
+                        created_at = datetime('now', 'utc');
+                    """,
+                    (
+                        str(item["date"]),
+                        int(item["hour"]),
+                        float(item["price_eur_mwh"]),
+                        float(item["price_eur_kwh"]),
+                        str(item.get("source", "henex_live")),
+                    ),
+                )
+                inserted += 1
+        return inserted
+
+    def get_dam_hourly_prices(self, target_date: str) -> list[dict[str, Any]]:
+        """Retrieve all DAM hourly prices for a given date ordered by hour."""
+        with self.connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT date, hour, price_eur_mwh, price_eur_kwh, source, created_at
+                FROM market_dam_hourly_prices
+                WHERE date = ?
+                ORDER BY hour ASC;
+                """,
+                (target_date,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_dam_hourly_price(self, target_date: str, hour: int) -> dict[str, Any] | None:
+        """Retrieve a specific hour's DAM clearing price."""
+        with self.connection() as conn:
+            row = conn.execute(
+                """
+                SELECT date, hour, price_eur_mwh, price_eur_kwh, source, created_at
+                FROM market_dam_hourly_prices
+                WHERE date = ? AND hour = ?
+                LIMIT 1;
+                """,
+                (target_date, hour),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def get_cached_dam_dates(self) -> list[str]:
+        """Return distinct dates with cached DAM hourly prices."""
+        with self.connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT DISTINCT date FROM market_dam_hourly_prices ORDER BY date DESC;
+                """
+            ).fetchall()
+            return [r["date"] for r in rows]
+
+    def store_green_tariffs(self, tariffs: list[dict[str, Any] | Any]) -> int:
+        """Upsert monthly Green Tariff announcements."""
+        if not tariffs:
+            return 0
+        inserted = 0
+        with self.connection() as conn:
+            for t in tariffs:
+                item = t if isinstance(t, dict) else (t.model_dump() if hasattr(t, "model_dump") else dict(t))
+                conn.execute(
+                    """
+                    INSERT INTO market_green_tariffs (
+                        month, supplier_id, supplier_name, contract_type,
+                        p_base, e_disc, prompt_discount_percent, alpha,
+                        lu_eur_mwh, ll_eur_mwh, beta, fixed_monthly_fee_eur,
+                        published_final_rate_eur_per_kwh, tea_m1_eur_mwh, source, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'utc'))
+                    ON CONFLICT(month, supplier_id, contract_type) DO UPDATE SET
+                        supplier_name = excluded.supplier_name,
+                        p_base = excluded.p_base,
+                        e_disc = excluded.e_disc,
+                        prompt_discount_percent = excluded.prompt_discount_percent,
+                        alpha = excluded.alpha,
+                        lu_eur_mwh = excluded.lu_eur_mwh,
+                        ll_eur_mwh = excluded.ll_eur_mwh,
+                        beta = excluded.beta,
+                        fixed_monthly_fee_eur = excluded.fixed_monthly_fee_eur,
+                        published_final_rate_eur_per_kwh = excluded.published_final_rate_eur_per_kwh,
+                        tea_m1_eur_mwh = excluded.tea_m1_eur_mwh,
+                        source = excluded.source,
+                        created_at = datetime('now', 'utc');
+                    """,
+                    (
+                        str(item["month"]),
+                        str(item["supplier_id"]),
+                        str(item["supplier_name"]),
+                        str(item["contract_type"]),
+                        float(item["p_base"]),
+                        float(item.get("e_disc", 0.0)),
+                        float(item.get("prompt_discount_percent", 0.0)),
+                        float(item.get("alpha", 1.15)),
+                        float(item.get("lu_eur_mwh", 115.0)),
+                        float(item.get("ll_eur_mwh", 95.0)),
+                        float(item.get("beta", 0.0)),
+                        float(item.get("fixed_monthly_fee_eur", 5.0)),
+                        float(item["published_final_rate_eur_per_kwh"]),
+                        float(item["tea_m1_eur_mwh"]) if item.get("tea_m1_eur_mwh") is not None else None,
+                        str(item.get("source", "energycost_live")),
+                    ),
+                )
+                inserted += 1
+        return inserted
+
+    def get_green_tariffs(
+        self, month: str | None = None, supplier_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Retrieve green tariffs filtered by month and/or supplier."""
+        query = "SELECT * FROM market_green_tariffs WHERE 1=1"
+        params: list[Any] = []
+        if month:
+            query += " AND month = ?"
+            params.append(month)
+        if supplier_id:
+            query += " AND supplier_id = ?"
+            params.append(supplier_id)
+        query += " ORDER BY month DESC, supplier_id ASC, contract_type ASC;"
+
+        with self.connection() as conn:
+            rows = conn.execute(query, tuple(params)).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_green_tariff(
+        self, month: str, supplier_id: str, contract_type: str
+    ) -> dict[str, Any] | None:
+        """Retrieve a specific green tariff announcement."""
+        with self.connection() as conn:
+            row = conn.execute(
+                """
+                SELECT * FROM market_green_tariffs
+                WHERE month = ? AND supplier_id = ? AND contract_type = ?
+                LIMIT 1;
+                """,
+                (month, supplier_id, contract_type),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def get_latest_green_month(self) -> str | None:
+        """Get the most recent month present in market_green_tariffs."""
+        with self.connection() as conn:
+            row = conn.execute(
+                "SELECT DISTINCT month FROM market_green_tariffs ORDER BY month DESC LIMIT 1;"
+            ).fetchone()
+            return row["month"] if row else None
+
 
 # Global store instance registry
 _stores: dict[str, SQLiteStore] = {}
@@ -664,3 +877,65 @@ def list_facility_configs(db_path: str | Path | None = None) -> list[dict[str, A
 def seed_default_facilities(db_path: str | Path | None = None) -> None:
     """Seed default facilities into database."""
     get_store(db_path).seed_default_facilities()
+
+
+def store_dam_hourly_prices(
+    prices: list[dict[str, Any] | Any],
+    db_path: str | Path | None = None,
+) -> int:
+    """Store 24-hour DAM hourly prices."""
+    return get_store(db_path).store_dam_hourly_prices(prices)
+
+
+def get_dam_hourly_prices(
+    target_date: str,
+    db_path: str | Path | None = None,
+) -> list[dict[str, Any]]:
+    """Fetch DAM hourly prices for a given date."""
+    return get_store(db_path).get_dam_hourly_prices(target_date)
+
+
+def get_dam_hourly_price(
+    target_date: str,
+    hour: int,
+    db_path: str | Path | None = None,
+) -> dict[str, Any] | None:
+    """Fetch DAM hourly price for a specific hour."""
+    return get_store(db_path).get_dam_hourly_price(target_date, hour)
+
+
+def get_cached_dam_dates(db_path: str | Path | None = None) -> list[str]:
+    """Fetch distinct dates with cached DAM prices."""
+    return get_store(db_path).get_cached_dam_dates()
+
+
+def store_green_tariffs(
+    tariffs: list[dict[str, Any] | Any],
+    db_path: str | Path | None = None,
+) -> int:
+    """Store monthly Green Tariff announcements."""
+    return get_store(db_path).store_green_tariffs(tariffs)
+
+
+def get_green_tariffs(
+    month: str | None = None,
+    supplier_id: str | None = None,
+    db_path: str | Path | None = None,
+) -> list[dict[str, Any]]:
+    """Fetch green tariffs filtered by month and/or supplier."""
+    return get_store(db_path).get_green_tariffs(month, supplier_id)
+
+
+def get_green_tariff(
+    month: str,
+    supplier_id: str,
+    contract_type: str,
+    db_path: str | Path | None = None,
+) -> dict[str, Any] | None:
+    """Fetch specific green tariff announcement."""
+    return get_store(db_path).get_green_tariff(month, supplier_id, contract_type)
+
+
+def get_latest_green_month(db_path: str | Path | None = None) -> str | None:
+    """Get the latest green month recorded in store."""
+    return get_store(db_path).get_latest_green_month()

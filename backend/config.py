@@ -39,6 +39,14 @@ class Settings(BaseModel):
         else None
     )
 
+    # Viber bot configuration
+    VIBER_BOT_TOKEN: str = Field(
+        default_factory=lambda: os.getenv("VIBER_BOT_TOKEN", "")
+    )
+    VIBER_WEBHOOK_URL: str = Field(
+        default_factory=lambda: os.getenv("VIBER_WEBHOOK_URL", "")
+    )
+
     # Alert throttling & hysteresis parameters
     ALERT_COOLDOWN_SECONDS: int = Field(
         default_factory=lambda: int(os.getenv("ALERT_COOLDOWN_SECONDS", "1800"))

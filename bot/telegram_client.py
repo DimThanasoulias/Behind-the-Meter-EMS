@@ -63,8 +63,10 @@ class MockTelegramClient(ITelegramClient):
         logger.debug("MockTelegramClient captured message for chat %s: %s", chat_id, text[:60])
         return True
 
-    def get_sent_messages(self) -> list[dict[str, Any]]:
-        """Return a copy of all captured messages."""
+    def get_sent_messages(self, chat_id: int | str | None = None) -> list[dict[str, Any]]:
+        """Return captured messages, optionally filtered by chat_id."""
+        if chat_id is not None:
+            return [m for m in self.sent_messages if str(m["chat_id"]) == str(chat_id)]
         return list(self.sent_messages)
 
     def get_last_message(self) -> dict[str, Any] | None:

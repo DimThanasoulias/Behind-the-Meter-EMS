@@ -5,9 +5,9 @@
 [![PlatformIO ESP32](https://img.shields.io/badge/PlatformIO-ESP32-orange.svg)](https://platformio.org/)
 [![Regulatory Standard](https://img.shields.io/badge/Law-5068%2F2023-brightgreen.svg)](https://ypen.gov.gr)
 [![Safety Standard](https://img.shields.io/badge/Standard-ELOT%2060364-red.svg)](https://www.elot.gr)
-[![Tests: 333 Passed](https://img.shields.io/badge/tests-333%20passed%20(100%25)-success.svg)](tests/)
+[![Tests: 438 Passed](https://img.shields.io/badge/tests-438%20passed%20(100%25)-success.svg)](tests/)
 
-A production-grade, modular Behind-the-Meter Energy Management System (EMS) engineered specifically for **Greek commercial SMBs** (artisanal bakeries, cold storage logistics, and boutique hotels). The system ingests 3-phase electrical power telemetry from ESP32 microcontrollers sampling split-core current transformers (SCT-013), calculates real-time electricity costs according to official Greek commercial tariff schemes (**Γ21, Γ22, Γ23, Green, Yellow, Dynamic**), and delivers proactive, actionable Greek-language cost-saving alerts directly via Telegram before costly peak-demand surcharges accumulate.
+A production-grade, modular Behind-the-Meter Energy Management System (EMS) engineered specifically for **Greek commercial SMBs** (artisanal bakeries, cold storage logistics, and boutique hotels). The system ingests 3-phase electrical power telemetry from ESP32 microcontrollers sampling split-core current transformers (SCT-013), calculates real-time electricity costs according to official Greek commercial tariff schemes (**Γ21, Γ22, Γ23, Green, Yellow, Dynamic**), ingests live energy market prices from **RAE** and **HEnEx**, delivers proactive cost-saving alerts via **Telegram & Viber**, and provides a responsive real-time **Web Dashboard** at `/dashboard`.
 
 ---
 
@@ -18,8 +18,8 @@ A production-grade, modular Behind-the-Meter Energy Management System (EMS) engi
 | 📐 **Hardware Schematics & Wiring** | [`docs/wiring_schematic.md`](docs/wiring_schematic.md) | SCT-013 CT clamp connections, burden resistor math ($18\,\Omega$), ADC1 pinout, virtual ground, and ELOT 60364 safety standards. |
 | 🛒 **Hardware Bill of Materials (BOM)** | [`docs/hardware_bom.md`](docs/hardware_bom.md) | Sub-€50 component list, part numbers, suppliers, PCB layout, and DIN-rail enclosure recommendations. |
 | 🇬🇷 **Greek Commercial Electricity Tariffs** | [`docs/greek_tariffs_guide.md`](docs/greek_tariffs_guide.md) | Detailed analysis of contracts Γ21, Γ22, Γ23, Law 5068/2023 Green tariff formula, DEDDIE peak schedules, and power factor penalties. |
-| 🔌 **REST API Reference** | [`docs/api_reference.md`](docs/api_reference.md) | FastAPI endpoint documentation, JSON request/response schemas, electrical invariants, and cURL examples. |
-| 🤖 **Telegram Bot & Greek Alerts Guide** | [`docs/telegram_bot_guide.md`](docs/telegram_bot_guide.md) | BotFather configuration, Chat ID discovery, anti-spam throttling, and Greek interactive commands. |
+| 🔌 **REST API Reference** | [`docs/api_reference.md`](docs/api_reference.md) | FastAPI endpoint documentation, JSON request/response schemas, market feeds, Viber webhook, and dashboard endpoints. |
+| 🤖 **Telegram & Viber Bot Guide** | [`docs/telegram_bot_guide.md`](docs/telegram_bot_guide.md) | BotFather configuration, Viber bot tokens, webhook routing, anti-spam throttling, and Greek interactive commands. |
 | 🚀 **Production Deployment Guide** | [`docs/deployment_guide.md`](docs/deployment_guide.md) | Systemd unit configuration, environment variables, PlatformIO ESP32 firmware flashing, and operations runbook. |
 
 ---
@@ -52,36 +52,33 @@ A production-grade, modular Behind-the-Meter Energy Management System (EMS) engi
 |  +-----------------------------+     +-------------------------------------+  |
 |          |                                              ^                     |
 |          v                                              |                     |
-|  +-------------------------------------------------------------------------+  |
+|  +------------------------------------------------------+------------------+  |
 |  | Greek Tariff & Real-Time Cost Engine                                    |  |
 |  | - Contracts: Γ21 (Single), Γ22 (Dual-Rate), Γ23 (Medium Voltage)        |  |
 |  | - Colors: Green (Law 5068/2023 MD Formula), Yellow, Dynamic (DAM Spot)   |  |
+|  | - Live Market Feeds: RAE Monthly Green Tariffs & HEnEx 24h DAM Curve    |  |
 |  | - Regulated Charges: DEDDIE, ADMIE, ETMEAR, YKO, EFK, DETE, 6% VAT      |  |
 |  | - Penalties: Contracted Capacity Excess, Low cos φ (< 0.85)             |  |
 |  | - Real-Time Metrics: €/h, Daily Spend (€), Projected Peak Penalty (€)   |  |
 |  +-------------------------------------------------------------------------+  |
 |          |                                                                    |
-|          v                                                                    |
-|  +-------------------------------------------------------------------------+  |
-|  | Alert Dispatcher & Throttling Engine                                    |  |
-|  | - State Machine: IDLE -> PENDING -> TRIGGERED -> COOLDOWN -> CLEARED    |  |
-|  | - 30-min Cooldown, >=25% Escalation Jump, 10% Hysteresis Recovery       |  |
-|  | - 3-Sample Debounce Filter (eliminates single-sample noise spikes)      |  |
-|  +-------------------------------------------------------------------------+  |
-|          |                                                                    |
-|          v                                                                    |
-|  +-------------------------------------------------------------------------+  |
-|  | Telegram Alert Bot Service                                              |  |
-|  | - Greek Notification Templates (Peak Breach, Pre-Warning, Cleared)      |  |
-|  | - Greek Interactive Commands: /status, /cost_today, /tariff, /settings  |  |
-|  | - Dual Mode Client: LiveTelegramClient / MockTelegramClient             |  |
-|  +-------------------------------------------------------------------------+  |
+|          +------------------------------------+                               |
+|          |                                    |                               |
+|          v                                    v                               |
+|  +---------------------------------+  +------------------------------------+  |
+|  | Unified Alerting Subsystem      |  | Interactive Web Dashboard UI       |  |
+|  | - 30-min Cooldown & Hysteresis  |  | - Route: GET /dashboard            |  |
+|  | - Multi-Channel Router:         |  | - Real-time 3-Phase Gauges         |  |
+|  |   * Telegram Bot Client         |  | - DEDDIE Zone & Cost (€/h, Today)  |  |
+|  |   * Viber Bot Client & Webhook  |  | - 24h Load vs Threshold Chart.js   |  |
+|  |   * Channel: Telegram/Viber/Both|  | - In-Browser Threshold Management  |  |
+|  +---------------------------------+  +------------------------------------+  |
 +-------------------------------------------------------------------------------+
 ```
 
 ---
 
-## 2. Feature Inventory (F01–F30)
+## 2. Feature Inventory (F01–F33)
 
 | # | Feature | Milestone | Scope & Description | Requirements |
 |---|---|---|---|---|
@@ -115,6 +112,9 @@ A production-grade, modular Behind-the-Meter Energy Management System (EMS) engi
 | **F28** | Hardware Wiring Schematics & Safety Guide | M7 | Complete circuit diagrams, SCT-013 CT clamp connections, burden resistor sizing, and safety rules | Acceptance Criteria |
 | **F29** | System Deployment & Operation Guide | M7 | Production setup guide with PlatformIO, systemd, `.env`, Telegram bot setup, and runbook | Acceptance Criteria |
 | **F30** | End-to-End Automated Integration Test Suite | M7 | Standalone automated script executing under 30s, verifying full pipeline from simulator to alert | Acceptance Criteria |
+| **F31** | Live Greek Energy Market Price Ingestion | E1 | Scraping of monthly RAE Green tariffs & 24h HEnEx DAM spot prices with 4-tier caching (RAM, SQLite, Seed, Algorithmic) | Expansion §R1 |
+| **F32** | Unified Multi-Channel Alerting & Viber Bot | E2 | Multi-channel dispatching (`telegram`, `viber`, `both`), `MockViberClient`, live Viber webhook handling, and HMAC signature check | Expansion §R2 |
+| **F33** | Interactive Real-Time Web Dashboard | E3 | Responsive Single-Page UI at `/dashboard` with 3-phase live metrics, DEDDIE badges, 24h Chart.js load curve, and threshold configuration | Expansion §R3 |
 
 ---
 
@@ -123,8 +123,8 @@ A production-grade, modular Behind-the-Meter Energy Management System (EMS) engi
 ### 3.1 Installation
 Clone the repository and install dependencies using Python 3.11+:
 ```bash
-git clone https://github.com/your-org/greek-commercial-ems.git
-cd greek-commercial-ems
+git clone https://github.com/DimThanasoulias/Behind-the-Meter-EMS.git
+cd Behind-the-Meter-EMS
 
 # Create virtual environment and install in editable mode
 python -m venv .venv
@@ -132,13 +132,21 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -e .
 ```
 
-### 3.2 Run Automated Test Suite (333 Tests)
+### 3.2 Run Automated Test Suite (438 Tests)
 ```bash
 pytest -v
 ```
-All 333 tests execute in under 2.5 seconds with 100% pass rate.
+All 438 tests execute in under 5.0 seconds with 100% pass rate.
 
-### 3.3 Run Standalone E2E Verification (< 30 Seconds)
+### 3.3 Start the FastAPI Backend & Web Dashboard
+```bash
+uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+```
+Open your browser at:
+- **Interactive Web Dashboard:** `http://localhost:8000/dashboard`
+- **Interactive OpenAPI Documentation:** `http://localhost:8000/docs`
+
+### 3.4 Run Standalone E2E Verification (< 30 Seconds)
 ```bash
 # Default (Commercial Bakery)
 python scripts/run_e2e_verification.py --profile bakery
@@ -149,13 +157,7 @@ python scripts/run_e2e_verification.py --profile cold_storage
 # Boutique Hotel (accepts 'hotel' or 'boutique_hotel')
 python scripts/run_e2e_verification.py --profile hotel
 ```
-Validates the entire end-to-end telemetry, tariff, debounce, cooldown, hysteresis, and Telegram notification pipeline dynamically for each commercial facility profile in **< 1.0 second**.
-
-### 3.4 Start the FastAPI Backend Server
-```bash
-uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
-```
-Interactive OpenAPI documentation is available at `http://localhost:8000/docs`.
+Validates the entire end-to-end telemetry, tariff, debounce, cooldown, hysteresis, and multi-channel notification pipeline dynamically for each commercial facility profile in **< 1.0 second**.
 
 ### 3.5 Run the Commercial Telemetry Simulator
 Stream 24 hours of compressed Bakery commercial load with breach injection:

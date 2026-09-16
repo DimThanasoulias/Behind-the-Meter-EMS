@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="el" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Behind-the-Meter EMS — Commercial Energy Monitor</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+            },
+            slate: {
+              850: '#151f32',
+              900: '#0f172a',
+              950: '#020617',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.1); }
+    }
+    .live-pulse {
+      animation: pulse-slow 2s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-emerald-500 selection:text-white">
+
+  <!-- Navigation Bar -->
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-lg font-bold tracking-tight text-white">Commercial EMS</h1>
+            <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono">v0.1.0</span>
+          </div>
+          <p class="text-xs text-slate-400">Greek Behind-the-Meter Energy Management System (Γ21/Γ22/Γ23)</p>
+        </div>
+      </div>
+
+      <!-- Facility Selector & Live Status Indicator -->
+      <div class="flex items-center space-x-4">
+        <div class="flex items-center bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-1.5">
+          <label for="facilitySelect" class="text-xs text-slate-400 mr-2 font-medium">Εγκατάσταση:</label>
+          <select id="facilitySelect" class="bg-transparent text-sm font-semibold text-white focus:outline-none cursor-pointer">
+            <option value="bakery-central-athens" class="bg-slate-900">Κεντρικός Φούρνος Αθήνας</option>
+            <option value="cold-storage-piraeus" class="bg-slate-900">Ψυγεία Πειραιά Logistics</option>
+            <option value="hotel-rhodes" class="bg-slate-900">Ξενοδοχείο Ρόδος Boutique</option>
+          </select>
+        </div>
+
+        <div class="flex items-center space-x-2 bg-slate-900/60 border border-slate-800 px-3 py-1.5 rounded-lg">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 live-pulse"></span>
+          <span id="liveStatusText" class="text-xs font-mono text-emerald-400 font-medium">LIVE TELEMETRY</span>
+          <span id="lastUpdated" class="text-[11px] text-slate-500 font-mono">--:--:--</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Active Tariff & DEDDIE Zone Banner -->
+    <div class="bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-4">
+        <div id="tariffColorPill" class="px-3.5 py-1.5 rounded-xl text-xs font-bold tracking-wide uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+          ΠΡΑΣΙΝΟ ΤΙΜΟΛΟΓΙΟ
+        </div>
+        <div>
+          <span class="text-xs text-slate-400 font-medium">Σύμβαση:</span>
+          <span id="contractCode" class="text-sm font-bold text-white ml-1">Γ22 (G22)</span>
+          <span class="text-slate-600 mx-2">|</span>
+          <span class="text-xs text-slate-400 font-medium">Συμφωνημένη Ισχύς:</span>
+          <span id="contractedKva" class="text-sm font-bold text-slate-200 ml-1">35 kVA</span>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-3">
+        <span class="text-xs text-slate-400 font-medium">Ενεργό Ωράριο ΔΕΔΔΗΕ:</span>
+        <div id="zoneBadge" class="flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span id="zoneName">Ζώνη Αιχμής (14:00 - 17:00)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 KPI Summary Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Card 1: Total Active Power -->
+      <div class="bg-slate-900 border border-slate-800/80 hover:border-slate-700 transition rounded-2xl p-5 shadow-lg relative overflow-hidden">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-medium uppercase tracking-wider mb-2">
+          <span>Συνολική Ισχύς</span>
+          <span id="powerStatusBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            ΚΑΝΟΝΙΚΟ
+          </span>
+        </div>
+        <div class="flex items-baseline space-x-1">
+          <span id="totalPowerKw" class="text-3xl font-extrabold text-white tracking-tight">0.00</span>
+          <span class="text-slate-400 font-semibold text-sm">kW</span>
+        </div>
+        <div class="mt-3 flex items-center justify-between text-xs text-slate-400 border-t border-slate-800/60 pt-2.5">
+          <span>Όριο Αιχμής:</span>
+          <span id="peakThresholdDisplay" class="font-mono font-semibold text-slate-200">22.0 kW</span>
+        </div>
+      </div>
+
+      <!-- Card 2: Instantaneous Running Cost -->
+      <div class="bg-slate-900 border border-slate-800/80 hover:border-slate-700 transition rounded-2xl p-5 shadow-lg">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-medium uppercase tracking-wider mb-2">
+          <span>Τρέχον Κόστος</span>
+          <span class="text-[11px] font-mono text-cyan-400">Ωριαίο</span>
+        </div>
+        <div class="flex items-baseline space-x-1">
+          <span id="runningCostEurH" class="text-3xl font-extrabold text-cyan-400 tracking-tight">0.00</span>
+          <span class="text-slate-400 font-semibold text-sm">€/h</span>
+        </div>
+        <div class="mt-3 flex items-center justify-between text-xs text-slate-400 border-t border-slate-800/60 pt-2.5">
+          <span>Χρέωση Ενέργειας:</span>
+          <span id="currentRateKwh" class="font-mono font-semibold text-slate-200">0.2450 €/kWh</span>
+        </div>
+      </div>
+
+      <!-- Card 3: Today's Accumulated Spend -->
+      <div class="bg-slate-900 border border-slate-800/80 hover:border-slate-700 transition rounded-2xl p-5 shadow-lg">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-medium uppercase tracking-wider mb-2">
+          <span>Σημερινή Δαπάνη</span>
+          <span class="text-[11px] font-mono text-amber-400">Συνολικό</span>
+        </div>
+        <div class="flex items-baseline space-x-1">
+          <span id="todaySpendEur" class="text-3xl font-extrabold text-amber-400 tracking-tight">0.00</span>
+          <span class="text-slate-400 font-semibold text-sm">€</span>
+        </div>
+        <div class="mt-3 flex items-center justify-between text-xs text-slate-400 border-t border-slate-800/60 pt-2.5">
+          <span>Κατανάλωση:</span>
+          <span id="todayKwh" class="font-mono font-semibold text-slate-200">0.0 kWh</span>
+        </div>
+      </div>
+
+      <!-- Card 4: System Power Factor -->
+      <div class="bg-slate-900 border border-slate-800/80 hover:border-slate-700 transition rounded-2xl p-5 shadow-lg">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-medium uppercase tracking-wider mb-2">
+          <span>Συντελεστής Ισχύος</span>
+          <span id="pfBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            cos φ ≥ 0.85
+          </span>
+        </div>
+        <div class="flex items-baseline space-x-1">
+          <span id="systemPf" class="text-3xl font-extrabold text-white tracking-tight">0.98</span>
+          <span class="text-slate-400 font-semibold text-sm">cos φ</span>
+        </div>
+        <div class="mt-3 flex items-center justify-between text-xs text-slate-400 border-t border-slate-800/60 pt-2.5">
+          <span>Συχνότητα & WiFi:</span>
+          <span id="gridFreqDisplay" class="font-mono font-semibold text-slate-200">50.0 Hz | -60 dBm</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Grid: 24h Chart & Quick Settings -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Left Column: Load Timeline Chart & 3-Phase Breakdown (Span 2) -->
+      <div class="lg:col-span-2 space-y-6">
+
+        <!-- 24h Load vs Peak Threshold Chart Card -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div>
+              <h2 class="text-base font-bold text-white tracking-tight">24ωρη Καμπύλη Φορτίου & Όριο Αιχμής</h2>
+              <p class="text-xs text-slate-400">Ιστορικό ενεργού ισχύος (kW) σε σύγκριση με το όριο υπέρβασης αιχμής</p>
+            </div>
+            <div class="flex items-center space-x-3 text-xs">
+              <span class="inline-flex items-center space-x-1">
+                <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                <span class="text-slate-300 font-medium">Φορτίο (kW)</span>
+              </span>
+              <span class="inline-flex items-center space-x-1">
+                <span class="w-3.5 h-0.5 bg-rose-500 inline-block border-t-2 border-dashed border-rose-500"></span>
+                <span class="text-rose-400 font-medium">Όριο Αιχμής</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="relative h-72 w-full">
+            <canvas id="loadTimelineChart"></canvas>
+          </div>
+        </div>
+
+        <!-- 3-Phase Electrical Details -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+          <h2 class="text-base font-bold text-white tracking-tight mb-3">Ανάλυση 3 Φάσεων (L1, L2, L3)</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <!-- Phase L1 -->
+            <div class="bg-slate-850/80 border border-slate-800 rounded-xl p-4">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-bold text-emerald-400 text-sm">Φάση L1</span>
+                <span id="p1Kw" class="text-xs font-mono font-bold text-white">0.0 kW</span>
+              </div>
+              <div class="space-y-1 text-xs text-slate-400">
+                <div class="flex justify-between"><span>Τάση:</span><span id="p1V" class="font-mono text-slate-200">230.0 V</span></div>
+                <div class="flex justify-between"><span>Ένταση:</span><span id="p1A" class="font-mono text-slate-200">0.0 A</span></div>
+                <div class="flex justify-between"><span>cos φ:</span><span id="p1Pf" class="font-mono text-slate-200">0.98</span></div>
+              </div>
+            </div>
+
+            <!-- Phase L2 -->
+            <div class="bg-slate-850/80 border border-slate-800 rounded-xl p-4">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-bold text-teal-400 text-sm">Φάση L2</span>
+                <span id="p2Kw" class="text-xs font-mono font-bold text-white">0.0 kW</span>
+              </div>
+              <div class="space-y-1 text-xs text-slate-400">
+                <div class="flex justify-between"><span>Τάση:</span><span id="p2V" class="font-mono text-slate-200">230.0 V</span></div>
+                <div class="flex justify-between"><span>Ένταση:</span><span id="p2A" class="font-mono text-slate-200">0.0 A</span></div>
+                <div class="flex justify-between"><span>cos φ:</span><span id="p2Pf" class="font-mono text-slate-200">0.98</span></div>
+              </div>
+            </div>
+
+            <!-- Phase L3 -->
+            <div class="bg-slate-850/80 border border-slate-800 rounded-xl p-4">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-bold text-cyan-400 text-sm">Φάση L3</span>
+                <span id="p3Kw" class="text-xs font-mono font-bold text-white">0.0 kW</span>
+              </div>
+              <div class="space-y-1 text-xs text-slate-400">
+                <div class="flex justify-between"><span>Τάση:</span><span id="p3V" class="font-mono text-slate-200">230.0 V</span></div>
+                <div class="flex justify-between"><span>Ένταση:</span><span id="p3A" class="font-mono text-slate-200">0.0 A</span></div>
+                <div class="flex justify-between"><span>cos φ:</span><span id="p3Pf" class="font-mono text-slate-200">0.98</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Column: Settings & Alert Preferences (Span 1) -->
+      <div class="space-y-6">
+
+        <!-- Quick Settings Card -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+          <div class="flex items-center space-x-2 mb-4">
+            <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <h2 class="text-base font-bold text-white tracking-tight">Ρυθμίσεις Προστασίας & Ειδοποιήσεων</h2>
+          </div>
+
+          <form id="settingsForm" class="space-y-4">
+            <div>
+              <label for="thresholdInput" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                Όριο Ισχύος Αιχμής (kW)
+              </label>
+              <div class="relative">
+                <input
+                  type="number"
+                  step="0.5"
+                  min="5"
+                  max="200"
+                  id="thresholdInput"
+                  class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                />
+                <span class="absolute right-3 top-2 text-xs text-slate-500 font-mono">kW</span>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-1">Υπέρβαση κατά τις ώρες αιχμής ΔΕΔΔΗΕ ενεργοποιεί άμεση προληπτική ειδοποίηση.</p>
+            </div>
+
+            <div>
+              <label for="channelSelect" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                Κανάλι Ειδοποιήσεων
+              </label>
+              <select
+                id="channelSelect"
+                class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+              >
+                <option value="telegram">Telegram Bot Μόνο</option>
+                <option value="viber">Viber Bot Μόνο</option>
+                <option value="both">Ταυτόχρονα Και στα Δύο (Telegram + Viber)</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="chatIdInput" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                Telegram Chat ID
+              </label>
+              <input
+                type="text"
+                id="chatIdInput"
+                placeholder="π.χ. 999111222"
+                class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label for="viberReceiverInput" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                Viber Receiver ID
+              </label>
+              <input
+                type="text"
+                id="viberReceiverInput"
+                placeholder="π.χ. vb_usr_bakery_123"
+                class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+
+            <button
+              type="submit"
+              id="saveBtn"
+              class="w-full bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold text-sm py-2.5 px-4 rounded-xl shadow-lg shadow-emerald-600/25 transition flex items-center justify-center space-x-2"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              <span>Αποθήκευση Ρυθμίσεων</span>
+            </button>
+          </form>
+
+          <!-- Toast Notification Banner -->
+          <div id="toastMessage" class="hidden mt-3 p-3 rounded-xl text-xs font-semibold text-center border"></div>
+        </div>
+
+        <!-- Bot Quick Commands Card -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+          <h2 class="text-sm font-bold text-white tracking-tight mb-2">Διαθέσιμες Εντολές Bot (Telegram / Viber)</h2>
+          <div class="space-y-1.5 text-xs text-slate-300">
+            <div class="flex items-center justify-between p-1.5 rounded-lg bg-slate-950/60 font-mono">
+              <span class="text-emerald-400">/status</span>
+              <span class="text-slate-400">3-φασική ισχύς, €/h, ζώνη</span>
+            </div>
+            <div class="flex items-center justify-between p-1.5 rounded-lg bg-slate-950/60 font-mono">
+              <span class="text-amber-400">/cost_today</span>
+              <span class="text-slate-400">kWh & σημερινό κόστος (€)</span>
+            </div>
+            <div class="flex items-center justify-between p-1.5 rounded-lg bg-slate-950/60 font-mono">
+              <span class="text-cyan-400">/tariff</span>
+              <span class="text-slate-400">Σύμβαση Γ21/Γ22 & ωράρια</span>
+            </div>
+            <div class="flex items-center justify-between p-1.5 rounded-lg bg-slate-950/60 font-mono">
+              <span class="text-purple-400">/settings</span>
+              <span class="text-slate-400">Όρια & παράμετροι cooldown</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Dashboard Client Script -->
+  <script>
+    let loadChart = null;
+    let currentFacilityId = document.getElementById('facilitySelect').value;
+
+    // Initialize Chart.js
+    function initChart() {
+      const ctx = document.getElementById('loadTimelineChart').getContext('2d');
+      loadChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'Ενεργός Ισχύς (kW)',
+              data: [],
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              borderWidth: 2.5,
+              tension: 0.35,
+              fill: true,
+              pointRadius: 2,
+              pointHoverRadius: 5,
+            },
+            {
+              label: 'Όριο Αιχμής (kW)',
+              data: [],
+              borderColor: '#f43f5e',
+              borderWidth: 2,
+              borderDash: [6, 6],
+              fill: false,
+              pointRadius: 0,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false,
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0f172a',
+              borderColor: '#334155',
+              borderWidth: 1,
+              titleFont: { size: 12, weight: 'bold' },
+              bodyFont: { size: 12 },
+              padding: 10,
+              callbacks: {
+                label: function(context) {
+                  return `${context.dataset.label}: ${context.parsed.y.toFixed(2)} kW`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(51, 65, 85, 0.3)' },
+              ticks: { color: '#94a3b8', maxRotation: 0, font: { size: 11 } }
+            },
+            y: {
+              grid: { color: 'rgba(51, 65, 85, 0.3)' },
+              ticks: {
+                color: '#94a3b8',
+                font: { size: 11 },
+                callback: function(val) { return val + ' kW'; }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Fetch and populate live metrics
+    async function refreshDashboard() {
+      try {
+        const res = await fetch(`/api/v1/dashboard/metrics/${currentFacilityId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        // 1. KPI Cards
+        document.getElementById('totalPowerKw').textContent = data.total_active_power_kw.toFixed(2);
+        document.getElementById('runningCostEurH').textContent = data.running_cost_eur_per_h.toFixed(2);
+        document.getElementById('currentRateKwh').textContent = data.current_rate_eur_per_kwh.toFixed(4) + ' €/kWh';
+        document.getElementById('todaySpendEur').textContent = data.cost_today_eur.toFixed(2);
+        document.getElementById('todayKwh').textContent = data.kwh_today.toFixed(1) + ' kWh';
+        document.getElementById('systemPf').textContent = data.system_power_factor.toFixed(2);
+        document.getElementById('gridFreqDisplay').textContent = `${data.grid_frequency_hz.toFixed(1)} Hz | ${data.wifi_rssi_dbm} dBm`;
+        document.getElementById('peakThresholdDisplay').textContent = `${data.peak_threshold_kw.toFixed(1)} kW`;
+
+        // 2. Power Status Badge
+        const statusBadge = document.getElementById('powerStatusBadge');
+        if (data.load_status === 'BREACH') {
+          statusBadge.className = 'text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30';
+          statusBadge.textContent = 'ΥΠΕΡΒΑΣΗ ΑΙΧΜΗΣ';
+        } else if (data.load_status === 'WARNING') {
+          statusBadge.className = 'text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30';
+          statusBadge.textContent = 'ΠΡΟΕΙΔΟΠΟΙΗΣΗ';
+        } else {
+          statusBadge.className = 'text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+          statusBadge.textContent = 'ΚΑΝΟΝΙΚΟ';
+        }
+
+        // 3. Power Factor Badge
+        const pfBadge = document.getElementById('pfBadge');
+        if (data.system_power_factor >= 0.85) {
+          pfBadge.className = 'text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+          pfBadge.textContent = 'cos φ ≥ 0.85 (OK)';
+        } else {
+          pfBadge.className = 'text-[11px] font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30';
+          pfBadge.textContent = 'cos φ < 0.85 (ΠΕΝΑΛΤΙ)';
+        }
+
+        // 4. Tariff Ribbon
+        document.getElementById('contractCode').textContent = data.contract_type;
+        document.getElementById('contractedKva').textContent = `${data.contracted_kva.toFixed(0)} kVA`;
+        document.getElementById('zoneName').textContent = data.active_zone_name;
+
+        const tariffPill = document.getElementById('tariffColorPill');
+        const color = (data.tariff_color || 'green').toLowerCase();
+        if (color.includes('yellow') || color.includes('κιτριν')) {
+          tariffPill.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold tracking-wide uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30';
+          tariffPill.textContent = 'ΚΙΤΡΙΝΟ ΤΙΜΟΛΟΓΙΟ';
+        } else if (color.includes('dynamic') || color.includes('orange') || color.includes('πορτοκαλ')) {
+          tariffPill.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold tracking-wide uppercase bg-orange-500/20 text-orange-300 border border-orange-500/30';
+          tariffPill.textContent = 'ΠΟΡΤΟΚΑΛΙ ΔΥΝΑΜΙΚΟ';
+        } else {
+          tariffPill.className = 'px-3.5 py-1.5 rounded-xl text-xs font-bold tracking-wide uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+          tariffPill.textContent = 'ΠΡΑΣΙΝΟ ΤΙΜΟΛΟΓΙΟ';
+        }
+
+        // 5. Phases Breakdown
+        const p1 = data.phases.L1 || {};
+        const p2 = data.phases.L2 || {};
+        const p3 = data.phases.L3 || {};
+        document.getElementById('p1Kw').textContent = `${(p1.active_power_kw || 0).toFixed(2)} kW`;
+        document.getElementById('p1V').textContent = `${(p1.voltage_v || 230).toFixed(1)} V`;
+        document.getElementById('p1A').textContent = `${(p1.current_a || 0).toFixed(1)} A`;
+        document.getElementById('p1Pf').textContent = `${(p1.power_factor || 0.98).toFixed(2)}`;
+
+        document.getElementById('p2Kw').textContent = `${(p2.active_power_kw || 0).toFixed(2)} kW`;
+        document.getElementById('p2V').textContent = `${(p2.voltage_v || 230).toFixed(1)} V`;
+        document.getElementById('p2A').textContent = `${(p2.current_a || 0).toFixed(1)} A`;
+        document.getElementById('p2Pf').textContent = `${(p2.power_factor || 0.98).toFixed(2)}`;
+
+        document.getElementById('p3Kw').textContent = `${(p3.active_power_kw || 0).toFixed(2)} kW`;
+        document.getElementById('p3V').textContent = `${(p3.voltage_v || 230).toFixed(1)} V`;
+        document.getElementById('p3A').textContent = `${(p3.current_a || 0).toFixed(1)} A`;
+        document.getElementById('p3Pf').textContent = `${(p3.power_factor || 0.98).toFixed(2)}`;
+
+        // 6. Update Settings Inputs only if user is not typing
+        if (!document.activeElement || document.activeElement.tagName !== 'INPUT') {
+          document.getElementById('thresholdInput').value = data.peak_threshold_kw;
+          document.getElementById('channelSelect').value = data.notification_channel || 'telegram';
+          document.getElementById('chatIdInput').value = data.chat_id || '';
+          document.getElementById('viberReceiverInput').value = data.viber_receiver_id || '';
+        }
+
+        // 7. Update Chart Data
+        if (data.timeline && data.timeline.length > 0 && loadChart) {
+          loadChart.data.labels = data.timeline.map(pt => pt.timestamp);
+          loadChart.data.datasets[0].data = data.timeline.map(pt => pt.power_kw);
+          loadChart.data.datasets[1].data = data.timeline.map(() => data.peak_threshold_kw);
+          loadChart.update('none'); // silent animation
+        }
+
+        document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString('el-GR');
+      } catch (err) {
+        console.error('Error refreshing dashboard:', err);
+      }
+    }
+
+    // Handle facility selection change
+    document.getElementById('facilitySelect').addEventListener('change', (e) => {
+      currentFacilityId = e.target.value;
+      refreshDashboard();
+    });
+
+    // Handle settings update
+    document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const saveBtn = document.getElementById('saveBtn');
+      const toast = document.getElementById('toastMessage');
+
+      const payload = {
+        peak_threshold_kw: parseFloat(document.getElementById('thresholdInput').value),
+        notification_channel: document.getElementById('channelSelect').value,
+        chat_id: document.getElementById('chatIdInput').value ? parseInt(document.getElementById('chatIdInput').value, 10) : null,
+        viber_receiver_id: document.getElementById('viberReceiverInput').value || null,
+      };
+
+      try {
+        saveBtn.disabled = true;
+        saveBtn.classList.add('opacity-75');
+
+        const res = await fetch(`/api/v1/dashboard/config/${currentFacilityId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          toast.className = 'mt-3 p-3 rounded-xl text-xs font-semibold text-center border bg-emerald-500/10 border-emerald-500/30 text-emerald-400 block';
+          toast.textContent = 'Οι ρυθμίσεις αποθηκεύτηκαν επιτυχώς!';
+          await refreshDashboard();
+        } else {
+          toast.className = 'mt-3 p-3 rounded-xl text-xs font-semibold text-center border bg-rose-500/10 border-rose-500/30 text-rose-400 block';
+          toast.textContent = 'Σφάλμα κατά την αποθήκευση ρυθμίσεων.';
+        }
+      } catch (err) {
+        toast.className = 'mt-3 p-3 rounded-xl text-xs font-semibold text-center border bg-rose-500/10 border-rose-500/30 text-rose-400 block';
+        toast.textContent = 'Σφάλμα δικτύου κατά την αποθήκευση.';
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.classList.remove('opacity-75');
+        setTimeout(() => { toast.classList.add('hidden'); }, 3500);
+      }
+    });
+
+    // Initialize on load
+    window.addEventListener('DOMContentLoaded', () => {
+      initChart();
+      refreshDashboard();
+      setInterval(refreshDashboard, 2000);
+    });
+  </script>
+</body>
+</html>

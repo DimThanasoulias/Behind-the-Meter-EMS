@@ -165,6 +165,11 @@ def format_greek_bot_response(
         p3 = phases_dict.get("L3") if isinstance(phases_dict, dict) else getattr(phases_dict, "L3", None)
 
         dt = _cfg_get(latest_payload, "timestamp", datetime.now(timezone.utc))
+        if isinstance(dt, str):
+            try:
+                dt = datetime.fromisoformat(dt.replace("Z", "+00:00"))
+            except Exception:
+                dt = datetime.now(timezone.utc)
         if is_greek_peak_window(dt):
             zone_str = "Ζώνη Αιχμής"
         elif is_greek_offpeak_window(dt):

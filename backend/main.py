@@ -19,8 +19,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import settings
 from backend.database.sqlite_store import get_store, init_db, seed_default_facilities
+from backend.routes.dashboard import router as dashboard_router
 from backend.routes.facilities import router as facilities_router
+from backend.routes.market import router as market_router
 from backend.routes.telemetry import router as telemetry_router
+from backend.routes.viber import router as viber_router
 
 logging.basicConfig(
     level=logging.INFO if not settings.DEBUG else logging.DEBUG,
@@ -40,6 +43,9 @@ def create_app(db_path: str | None = None) -> FastAPI:
         store = get_store(target_db)
         store.init_db()
         store.seed_default_facilities()
+        # Initialize market price service
+        from backend.market.service import MarketPriceService
+        app.state.market_service = MarketPriceService(store=store)
         logger.info("EMS database initialized and default facilities seeded successfully.")
         yield
         # Shutdown cleanup if needed
@@ -65,6 +71,9 @@ def create_app(db_path: str | None = None) -> FastAPI:
     # Mount API routers under /api/v1
     app.include_router(telemetry_router, prefix=settings.API_V1_STR)
     app.include_router(facilities_router, prefix=settings.API_V1_STR)
+    app.include_router(market_router, prefix=settings.API_V1_STR)
+    app.include_router(viber_router, prefix=settings.API_V1_STR)
+    app.include_router(dashboard_router)
 
     @app.get("/", tags=["system"])
     def root() -> dict[str, str]:

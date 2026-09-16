@@ -35,6 +35,7 @@ from backend.models.alert import (
 )
 from backend.models.telemetry import TelemetryPayload
 from bot.telegram_client import ITelegramClient, LiveTelegramClient, MockTelegramClient
+from bot.viber_client import IViberClient, LiveViberClient, MockViberClient
 from bot.templates_el import (
     get_peak_window_str,
     get_tailored_curtailment_advice,
@@ -145,6 +146,12 @@ class FacilityStateMachine:
         self.chat_id: int | str | None = _cfg_get(
             config, "chat_id", _cfg_get(config, "telegram_chat_id", None)
         )
+        self.viber_receiver_id: str | None = _cfg_get(
+            config, "viber_receiver_id", _cfg_get(config, "viber_chat_id", None)
+        )
+        self.notification_channel: str = str(
+            _cfg_get(config, "notification_channel", "telegram")
+        ).lower()
 
         self.state: AlertState = AlertState.IDLE
         self.debounce_counter: int = 0
@@ -335,6 +342,8 @@ class FacilityStateMachine:
                 "facility_type": self.facility_type,
                 "warning_threshold_kw": warning_kw,
                 "chat_id": self.chat_id,
+                "viber_receiver_id": self.viber_receiver_id,
+                "notification_channel": self.notification_channel,
             },
             dispatched=False,
         )
@@ -378,6 +387,8 @@ class FacilityStateMachine:
                 "facility_name": self.facility_name,
                 "facility_type": self.facility_type,
                 "chat_id": self.chat_id,
+                "viber_receiver_id": self.viber_receiver_id,
+                "notification_channel": self.notification_channel,
             },
             dispatched=False,
         )
@@ -449,6 +460,8 @@ class FacilityStateMachine:
                 "running_cost_eur_per_h": running_cost,
                 "is_escalation": is_escalation,
                 "chat_id": self.chat_id,
+                "viber_receiver_id": self.viber_receiver_id,
+                "notification_channel": self.notification_channel,
             },
             dispatched=False,
         )
@@ -480,6 +493,8 @@ class FacilityStateMachine:
                 "facility_type": self.facility_type,
                 "running_cost_eur_per_h": 0.0,
                 "chat_id": self.chat_id,
+                "viber_receiver_id": self.viber_receiver_id,
+                "notification_channel": self.notification_channel,
             },
             dispatched=False,
         )
@@ -496,7 +511,9 @@ class AlertDispatcher:
         self,
         facility_config: Any = None,
         telegram_client: ITelegramClient | None = None,
+        viber_client: IViberClient | None = None,
         default_chat_id: int | str | None = None,
+        default_viber_receiver_id: str | None = None,
     ) -> None:
         if telegram_client is not None:
             self.telegram_client: ITelegramClient | None = telegram_client
@@ -505,8 +522,18 @@ class AlertDispatcher:
         else:
             self.telegram_client = MockTelegramClient()
 
+        if viber_client is not None:
+            self.viber_client: IViberClient | None = viber_client
+        elif settings and getattr(settings, "VIBER_AUTH_TOKEN", None):
+            self.viber_client = LiveViberClient(auth_token=settings.VIBER_AUTH_TOKEN)
+        else:
+            self.viber_client = MockViberClient()
+
         self.default_chat_id: int | str | None = default_chat_id or (
             getattr(settings, "TELEGRAM_DEFAULT_CHAT_ID", None) if settings else None
+        )
+        self.default_viber_receiver_id: str | None = default_viber_receiver_id or (
+            getattr(settings, "VIBER_DEFAULT_RECEIVER_ID", None) if settings else None
         )
         self._facilities: dict[str, FacilityStateMachine] = {}
         self._primary_facility_id: str | None = None
@@ -518,6 +545,10 @@ class AlertDispatcher:
     def set_telegram_client(self, client: ITelegramClient) -> None:
         """Override Telegram client (useful for mock injection in tests)."""
         self.telegram_client = client
+
+    def set_viber_client(self, client: IViberClient) -> None:
+        """Override Viber client (useful for mock injection in tests)."""
+        self.viber_client = client
 
     def get_facility_state(self, facility_id: str) -> str:
         """Get current alert state string for a facility."""
@@ -619,51 +650,89 @@ class AlertDispatcher:
         self,
         alert_event: AlertEvent,
         chat_id: int | str | None = None,
+        viber_receiver_id: str | None = None,
     ) -> bool:
-        """Asynchronously send an alert event via the configured ITelegramClient.
+        """Asynchronously send an alert event via configured Telegram and/or Viber clients.
 
         Args:
             alert_event: The AlertEvent or DispatcherAlertEvent to send.
-            chat_id: Target chat ID. If None, resolves from alert metadata or defaults.
+            chat_id: Target Telegram chat ID. If None, resolves from alert metadata or defaults.
+            viber_receiver_id: Target Viber receiver ID. If None, resolves from metadata or defaults.
 
         Returns:
-            bool: True if delivered successfully, False otherwise.
+            bool: True if delivered successfully via active channels, False otherwise.
         """
-        if self.telegram_client is None:
-            logger.warning("No ITelegramClient configured on AlertDispatcher; marking dispatched in memory.")
-            alert_event.dispatched = True
-            alert_event.dispatched_at = datetime.now(timezone.utc)
-            self.dispatched_alerts.append(alert_event)
-            return True
+        fac_id = getattr(alert_event, "facility_id", None)
+        fsm = self._facilities.get(fac_id) if fac_id else None
 
+        channel = str(
+            alert_event.metadata.get("notification_channel")
+            or (fsm.notification_channel if fsm else None)
+            or "telegram"
+        ).lower()
         target_chat = (
             chat_id
             or alert_event.metadata.get("chat_id")
+            or (fsm.chat_id if fsm else None)
             or self.default_chat_id
         )
-        if not target_chat:
-            logger.warning(
-                "No target chat_id found for facility %s; marking dispatched in memory.",
-                alert_event.facility_id,
-            )
-            alert_event.dispatched = True
-            alert_event.dispatched_at = datetime.now(timezone.utc)
-            self.dispatched_alerts.append(alert_event)
-            return True
-
-        sent = await self.telegram_client.send_message(
-            chat_id=target_chat,
-            text=alert_event.message,
-            parse_mode="HTML",
+        target_viber = (
+            viber_receiver_id
+            or alert_event.metadata.get("viber_receiver_id")
+            or (fsm.viber_receiver_id if fsm else None)
+            or self.default_viber_receiver_id
         )
-        alert_event.dispatched = sent
-        if sent:
+
+        sent_any = False
+
+        # Telegram dispatch
+        if channel in ("telegram", "both"):
+            if self.telegram_client is None:
+                logger.warning("No ITelegramClient configured; marking dispatched in memory.")
+                sent_any = True
+            elif target_chat:
+                sent_tg = await self.telegram_client.send_message(
+                    chat_id=target_chat,
+                    text=alert_event.message,
+                    parse_mode="HTML",
+                )
+                if sent_tg:
+                    sent_any = True
+                    logger.info("Alert %s successfully dispatched to Telegram chat %s", alert_event.id, target_chat)
+                else:
+                    logger.error("Failed to dispatch alert %s to Telegram chat %s", alert_event.id, target_chat)
+            else:
+                sent_any = True
+
+        # Viber dispatch
+        if channel in ("viber", "both"):
+            if self.viber_client is None:
+                logger.warning("No IViberClient configured; marking dispatched in memory.")
+                sent_any = True
+            elif target_viber:
+                viber_text = (
+                    alert_event.message.replace("<b>", "")
+                    .replace("</b>", "")
+                    .replace("<code>", "")
+                    .replace("</code>", "")
+                )
+                sent_vb = await self.viber_client.send_message(
+                    receiver_id=str(target_viber),
+                    text=viber_text,
+                )
+                if sent_vb:
+                    sent_any = True
+                    logger.info("Alert %s successfully dispatched to Viber receiver %s", alert_event.id, target_viber)
+                else:
+                    logger.error("Failed to dispatch alert %s to Viber receiver %s", alert_event.id, target_viber)
+            else:
+                sent_any = True
+
+        alert_event.dispatched = sent_any
+        if sent_any:
             alert_event.dispatched_at = datetime.now(timezone.utc)
-            logger.info("Alert %s successfully dispatched to chat %s", alert_event.id, target_chat)
-        else:
-            logger.error("Failed to dispatch alert %s to chat %s", alert_event.id, target_chat)
         self.dispatched_alerts.append(alert_event)
-        return sent
+        return sent_any
 
     async def process_reading_and_dispatch(
         self,

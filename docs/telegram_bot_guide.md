@@ -174,3 +174,39 @@ Dispatched once load drops below the 10% hysteresis threshold ($0.90 \times 22.0
 Ρυθμιζόμενες Χρεώσεις: 0.0630 €/kWh
 Συνολική Εκτιμώμενη Χρέωση: 0.2450 €/kWh + 6% ΦΠΑ
 ```
+
+---
+
+## 7. Unified Multi-Channel Alerting: Viber Bot Setup
+
+In addition to Telegram, the Behind-the-Meter EMS supports **Viber Bot** alerting for Greek business owners who prefer receiving operational notifications directly on Viber.
+
+### Step 1: Create a Viber Bot
+1. Open the [Viber Partners Portal](https://partners.viber.com/).
+2. Create a new Bot account with your business details.
+3. Obtain your **Viber Bot Authentication Token**.
+4. Configure in your `.env` file:
+   ```ini
+   VIBER_BOT_TOKEN=4f8b9...-your-viber-token
+   VIBER_WEBHOOK_URL=https://your-domain.gr/api/v1/viber/webhook
+   ```
+
+### Step 2: Configure Notification Target (Telegram / Viber / Both)
+Each commercial facility can configure its alerting channel preference:
+- **`telegram`**: Sends alerts exclusively to the configured Telegram chat.
+- **`viber`**: Sends clean, plain-text alerts to the Viber receiver ID.
+- **`both`**: Simultaneously dispatches proactive alerts to both Telegram and Viber.
+
+This can be configured dynamically either via the **Web Dashboard** (`http://localhost:8000/dashboard`) or via the REST API:
+```bash
+curl -X POST http://localhost:8000/api/v1/dashboard/config/bakery-central-athens \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notification_channel": "both",
+    "chat_id": 999111222,
+    "viber_receiver_id": "vb_usr_bakery_123"
+  }'
+```
+
+### Step 3: Interactive Commands on Viber
+The Viber Webhook handles the exact same conversational Greek commands as Telegram (`/status`, `/cost_today`, `/tariff`, `/settings`, `/help`) with HTML tags automatically stripped for clean display on Viber mobile clients.
