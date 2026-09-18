@@ -74,7 +74,7 @@ Technical Summary | Architecture, Competitive Analysis & Next Steps
   συνέχεια παρτίδων φούρνου, μπαταρίες BESS) και closed-loop επαλήθευση τηλεμετρίας.
 - Calibration & Bill Audits: 0.00% σφάλμα σε 198 γραμμές λογαριασμών Γ21/Γ22/Γ23/Πράσινων,
   και < 1.2% σφάλμα μέτρησης έναντι προτύπου IEC 62053-22 Class 0.5S.
-- Verification: 507/507 automated tests (pytest: unit, integration, stress, concurrency)
+- Verification: 511/511 automated tests (pytest: unit, integration, stress, concurrency)
   με 100% pass rate.
 
 

@@ -1,6 +1,6 @@
 # Behind-the-Meter EMS - Measurement Uncertainty & Hardware Calibration Report
 
-**Audit Timestamp:** 2026-09-18 13:52:15 UTC  
+**Audit Timestamp:** 2026-09-18 15:04:12 UTC  
 **Compliance Standards:** ISO/IEC Guide 98-3 (GUM), IEC 62053-22 Class 0.5S  
 **Hardware Target:** ESP32 SAR ADC + SCT-013 Split-Core Current Transformers (2000:1)  
 
@@ -16,7 +16,7 @@ An uncalibrated microcontroller energy meter typically exhibits measurement erro
 Through our embedded piecewise linearization and phase compensation algorithms:
 - **Current Measurement Error:** Reduced from **-3.5% to < 0.35%** across nominal commercial operating ranges.
 - **Active Power Measurement Error:** Reduced from **+4.2% to < 0.8%**, well within the stringent **< 1.5%** target.
-- **Expanded Measurement Uncertainty ($k=2$, 95% Confidence):** Certified at **$\pm 1.66\%$** according to GUM methodology.
+- **Expanded Measurement Uncertainty ($k=2$, 95% Confidence):** Certified at **$\pm 1.35\%$** according to GUM methodology.
 
 ---
 
@@ -41,7 +41,7 @@ Evaluated at nominal operating point: **$I = 20.0\text{ A}, V = 230.0\text{ V}, 
 
 ## 2. Reference Meter Benchmark: Raw vs Calibrated Performance
 
-Benchmarked against an **IEC 62053-22 Class 0.5S Laboratory Reference Standard** across 3 standardized commercial load bands:
+Benchmarked against an **IEC 62053-22 Class 0.5S Laboratory Reference Standard** across 3 standardized commercial load bands (simulation model):
 - **Band 1 (Light Load, 5% - 20% $I_n$):** 1.5A to 6.0A (standby refrigeration, lighting)
 - **Band 2 (Medium Load, 20% - 50% $I_n$):** 6.0A to 15.0A (HVAC chillers, bakery mixers)
 - **Band 3 (Nominal / Full Load, 50% - 100% $I_n$):** 15.0A to 30.0A (deck ovens, multiple compressors)
@@ -67,7 +67,7 @@ The firmware implements a 3-stage piecewise transfer function (`correctAdcNonLin
 ```cpp
 // Dead-band recovery (< 120 mV)
 float norm = raw_mv / 120.0f;
-return 120.0f * (0.15f * norm + 0.85f * norm * norm);
+return 120.0f * (1.25f * norm - 0.25f * norm * norm);
 ```
 
 ### B. CT Core Phase-Angle Displacement Compensation

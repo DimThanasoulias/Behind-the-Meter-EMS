@@ -7,7 +7,7 @@
 [![Safety Standard](https://img.shields.io/badge/Standard-ELOT%2060364-red.svg)](https://www.elot.gr)
 [![Bill Validation: 0.00% Error](https://img.shields.io/badge/Bill%20Audit-0.00%25%20Error%20(198%20lines)-success.svg)](docs/tariff_validation_report.md)
 [![Calibration: Class 0.5S](https://img.shields.io/badge/Hardware%20Accuracy-%3C1.2%25%20Error%20(Class%200.5S)-blue.svg)](docs/measurement_uncertainty_report.md)
-[![Tests: 507 Passed](https://img.shields.io/badge/tests-507%20passed%20(100%25)-success.svg)](tests/)
+[![Tests: 511 Passed](https://img.shields.io/badge/tests-511%20passed%20(100%25)-success.svg)](tests/)
 
 An experimentally validated, closed-loop Behind-the-Meter Energy Management System (EMS) engineered for **commercial SMBs** (artisanal bakeries, cold storage logistics, boutique hotels). The platform bridges low-cost IoT metering hardware (<50€ BOM) with mathematical mixed-integer linear programming (MILP), transforming energy management from passive monitoring into an autonomous optimization loop: **`Measure -> Predict -> Optimize -> Act -> Verify`**.
 
@@ -51,7 +51,7 @@ This platform provides an autonomous decision-support and constrained load sched
 | **Hardware Measurement Uncertainty** | Current & Active Power Error | **< 0.35% (I) / < 0.20% (P)** | IEC 62053-22 Class 0.5S laboratory standard ([`docs/measurement_uncertainty_report.md`](docs/measurement_uncertainty_report.md)) |
 | **Expanded Uncertainty ($k=2$)** | 95% Confidence Interval Budget | **±1.35%** | ISO/IEC Guide 98-3 (GUM) error budget |
 | **MILP Optimization Latency** | 24-Hour Horizon Solve Time | **< 25 ms** | SciPy HiGHS solver (< 100 ms real-time ceiling) |
-| **Test Suite Coverage** | Passing Unit, Integration & E2E Tests | **507 / 507 (100%)** | 5.4s total execution time |
+| **Test Suite Coverage** | Passing Unit, Integration & E2E Tests | **511 / 511 (100%)** | 5.5s total execution time |
 
 ---
 
@@ -150,11 +150,11 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -e .
 ```
 
-### 4.2 Run Automated Test Suite (507 Tests)
+### 4.2 Run Automated Test Suite (511 Tests)
 ```bash
 pytest -v
 ```
-All 507 unit, integration, and tiered end-to-end tests execute in **~5.4 seconds** with 100% pass rate.
+All 511 unit, integration, and tiered end-to-end tests execute in **~5.5 seconds** with 100% pass rate.
 
 ### 4.3 Start the FastAPI Backend & Web Dashboard
 ```bash

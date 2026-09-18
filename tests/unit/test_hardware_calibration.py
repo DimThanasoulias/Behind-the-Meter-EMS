@@ -79,7 +79,7 @@ class TestFirmwareCompensationPhysics:
             return 0.0
         if raw_mv < 120.0:
             norm = raw_mv / 120.0
-            return 120.0 * (0.15 * norm + 0.85 * norm * norm)
+            return 120.0 * (1.25 * norm - 0.25 * norm * norm)
         if raw_mv <= 2600.0:
             return 0.998 * raw_mv + 0.5
         if raw_mv < 3250.0:
@@ -105,9 +105,11 @@ class TestFirmwareCompensationPhysics:
         return math.cos(phi_true_rad)
 
     def test_adc_deadband_recovery(self):
-        """Verify non-linear recovery near zero millivolts."""
+        """Verify non-linear recovery near zero millivolts restores suppressed signal."""
         v_low = self.simulate_adc_linearization(50.0)
-        assert 0.0 < v_low < 50.0
+        # Suppressed 50 mV input must be de-attenuated (expanded) above raw 50 mV
+        assert v_low >= 50.0
+        assert v_low <= 65.0
         v_linear = self.simulate_adc_linearization(1500.0)
         assert math.isclose(v_linear, 1500.0, rel_tol=0.01)
 

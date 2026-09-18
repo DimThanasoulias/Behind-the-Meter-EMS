@@ -5,13 +5,14 @@ Exposes:
 - GET /api/v1/optimization/recommendations: Retrieve prioritized operational action recommendations.
 - POST /api/v1/optimization/verify: Certify real telemetry against baseline counterfactual.
 - GET /api/v1/optimization/status: Engine operational status and solver capability metadata.
+- GET /api/v1/optimization/verifications: Retrieve audit log of verified interventions.
 """
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from optimization_engine.models import (
     ActionRecommendation,
@@ -20,7 +21,6 @@ from optimization_engine.models import (
     HVACLoad,
     OptimizationProblem,
     ProductionBatchLoad,
-    ScheduleResult,
     VerificationRecord,
 )
 from optimization_engine.solver import ConstrainedLoadSolver
@@ -28,9 +28,9 @@ from optimization_engine.decision_support import ClosedLoopVerifier, DecisionSup
 
 router = APIRouter(prefix="/optimization", tags=["Optimization & Decision Support"])
 
-# In-memory recommendation and verification registry for active session
-_active_recommendations: List[ActionRecommendation] = []
-_active_verifications: List[VerificationRecord] = []
+# In-memory recommendation and verification registry partitioned by facility_id
+_active_recommendations: Dict[str, List[ActionRecommendation]] = {}
+_active_verifications: Dict[str, List[VerificationRecord]] = {}
 
 
 class SolveRequest(BaseModel):
@@ -42,6 +42,20 @@ class SolveRequest(BaseModel):
     include_batch_ovens: bool = True
     include_hvac: bool = True
     include_bess: bool = True
+
+    @field_validator("baseline_load_kw")
+    @classmethod
+    def validate_baseline(cls, v: Optional[List[float]]) -> Optional[List[float]]:
+        if v is not None and len(v) != 24:
+            raise ValueError(f"baseline_load_kw must have exactly 24 hourly entries, received {len(v)}")
+        return v
+
+    @field_validator("tariff_rates_eur_kwh")
+    @classmethod
+    def validate_tariffs(cls, v: Optional[List[float]]) -> Optional[List[float]]:
+        if v is not None and len(v) != 24:
+            raise ValueError(f"tariff_rates_eur_kwh must have exactly 24 hourly entries, received {len(v)}")
+        return v
 
 
 class VerificationRequest(BaseModel):
@@ -55,6 +69,8 @@ class VerificationRequest(BaseModel):
 @router.get("/status")
 def get_optimization_status():
     """Return optimization engine capabilities and health status."""
+    total_recs = sum(len(recs) for recs in _active_recommendations.values())
+    total_vers = sum(len(vers) for vers in _active_verifications.values())
     return {
         "status": "operational",
         "solver_backend": "scipy_highs_milp",
@@ -66,8 +82,8 @@ def get_optimization_status():
             "bess_soc_and_power_limits",
             "contracted_capacity_surcharge_avoidance",
         ],
-        "active_recommendations_count": len(_active_recommendations),
-        "verified_interventions_count": len(_active_verifications),
+        "active_recommendations_count": total_recs,
+        "verified_interventions_count": total_vers,
     }
 
 
@@ -112,9 +128,8 @@ def solve_schedule(req: SolveRequest):
     engine = DecisionSupportEngine(facility_id=req.facility_id)
     recs = engine.generate_recommendations(problem, res)
 
-    # Store active recommendations
-    global _active_recommendations
-    _active_recommendations = recs
+    # Store active recommendations partitioned by facility_id
+    _active_recommendations[req.facility_id] = recs
 
     return {
         "status": res.status,
@@ -140,35 +155,31 @@ def solve_schedule(req: SolveRequest):
 
 @router.get("/recommendations", response_model=List[ActionRecommendation])
 def get_recommendations(facility_id: Optional[str] = Query(None)):
-    """Retrieve active decision-support recommendations."""
+    """Retrieve active decision-support recommendations with optional facility filtering."""
     if facility_id:
-        return [r for r in _active_recommendations if r.facility_id == facility_id]
-    return _active_recommendations
+        return _active_recommendations.get(facility_id, [])
+    return [rec for recs in _active_recommendations.values() for rec in recs]
 
 
 @router.post("/verify", response_model=VerificationRecord)
 def verify_intervention(req: VerificationRequest):
-    """Certify post-intervention telemetry against baseline counterfactual."""
-    rec = next((r for r in _active_recommendations if r.recommendation_id == req.recommendation_id), None)
+    """Certify post-intervention telemetry against baseline counterfactual.
+    
+    Raises 404 if the recommendation_id is not found in the active registry.
+    """
+    rec: Optional[ActionRecommendation] = None
+    for facility_recs in _active_recommendations.values():
+        for r in facility_recs:
+            if r.recommendation_id == req.recommendation_id:
+                rec = r
+                break
+        if rec:
+            break
+
     if not rec:
-        # Generate synthetic reference recommendation if not found
-        from optimization_engine.models import PriorityLevel, RecommendationCategory
-        rec = ActionRecommendation(
-            recommendation_id=req.recommendation_id,
-            facility_id="fac_commercial_01",
-            category=RecommendationCategory.DEFROST_SHIFT,
-            priority=PriorityLevel.HIGH,
-            title="Ad-hoc Intervention Verification",
-            description_el="Επαλήθευση παρέμβασης",
-            description_en="Intervention verification",
-            asset_name="Cold Storage Compressor",
-            original_window="14:00-15:00",
-            recommended_window="16:00-17:00",
-            peak_load_avoided_kw=6.8,
-            estimated_savings_eur=14.20,
-            confidence_score=0.92,
-            contracted_capacity_kw=35.0,
-            projected_peak_kw=28.2,
+        raise HTTPException(
+            status_code=404,
+            detail=f"Recommendation '{req.recommendation_id}' not found. Cannot verify non-existent intervention.",
         )
 
     verifier = ClosedLoopVerifier()
@@ -180,11 +191,13 @@ def verify_intervention(req: VerificationRequest):
         capacity_penalty_rate=req.capacity_penalty_rate,
     )
 
-    _active_verifications.append(record)
+    _active_verifications.setdefault(rec.facility_id, []).append(record)
     return record
 
 
 @router.get("/verifications", response_model=List[VerificationRecord])
-def get_verifications():
+def get_verifications(facility_id: Optional[str] = Query(None)):
     """Retrieve history of certified closed-loop intervention audits."""
-    return _active_verifications
+    if facility_id:
+        return _active_verifications.get(facility_id, [])
+    return [v for vers in _active_verifications.values() for v in vers]

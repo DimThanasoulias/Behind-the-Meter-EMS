@@ -387,3 +387,69 @@ class TestOptimizationRESTEndpoints:
         ver_data = ver_resp.json()
         assert ver_data["status"] in ["success", "partial", "failed"]
         assert ver_data["actual_load_avoided_kw"] == 8.0
+
+    def test_post_verify_404_on_unknown_id(self, client):
+        """POST /api/v1/optimization/verify with non-existent ID must return 404 Not Found."""
+        ver_payload = {
+            "recommendation_id": "non_existent_rec_9999",
+            "actual_measured_kw": 24.0,
+            "counterfactual_baseline_kw": 32.0,
+        }
+        resp = client.post("/api/v1/optimization/verify", json=ver_payload)
+        assert resp.status_code == 404
+        assert "not found" in resp.json()["detail"].lower()
+
+    def test_solve_422_on_invalid_horizon_length(self, client):
+        """POST /api/v1/optimization/solve must reject baseline loads or tariffs not having 24 entries."""
+        payload_bad_baseline = {"baseline_load_kw": [10.0] * 12}
+        resp = client.post("/api/v1/optimization/solve", json=payload_bad_baseline)
+        assert resp.status_code == 422
+
+        payload_bad_tariffs = {"tariff_rates_eur_kwh": [0.15] * 20}
+        resp2 = client.post("/api/v1/optimization/solve", json=payload_bad_tariffs)
+        assert resp2.status_code == 422
+
+    def test_multi_hour_contiguous_defrost(self):
+        """Multi-hour defrost must run contiguously in optimal schedule."""
+        defrost = DefrostLoad(
+            name="2-Hour Freezer Defrost",
+            nominal_start_hour=14,
+            duration_hours=2,
+            power_kw=7.5,
+            max_shift_hours=3,
+        )
+        problem = OptimizationProblem(
+            horizon_hours=24,
+            baseline_load_kw=[10.0] * 24,
+            tariff_rates_eur_kwh=[0.20] * 24,
+            contracted_capacity_kw=40.0,
+            defrost_loads=[defrost],
+        )
+        solver = ConstrainedLoadSolver(problem)
+        res = solver.solve()
+        assert res.is_optimal is True
+        schedule = res.device_schedules["2-Hour Freezer Defrost"]
+        active = [t for t, p in enumerate(schedule) if p > 0.1]
+        assert len(active) == 2
+        assert active[1] == active[0] + 1
+
+    def test_hvac_soft_comfort_feasibility_on_freezing_day(self):
+        """Solver must remain feasible on cold winter days when ambient is below comfort lower limit."""
+        hvac = HVACLoad(
+            name="Office HVAC",
+            initial_temp_c=18.0,
+            temp_min_c=20.0,
+            temp_max_c=24.0,
+            ambient_temp_forecast=[4.0] * 24,  # Freezing ambient temperature
+        )
+        problem = OptimizationProblem(
+            horizon_hours=24,
+            baseline_load_kw=[5.0] * 24,
+            tariff_rates_eur_kwh=[0.15] * 24,
+            contracted_capacity_kw=30.0,
+            hvac_loads=[hvac],
+        )
+        solver = ConstrainedLoadSolver(problem)
+        res = solver.solve()
+        # Soft slack absorbs temperature excursion without solver crash
+        assert res.is_optimal is True

@@ -18,8 +18,12 @@ from typing import Dict, List, Optional
 
 from optimization_engine.models import (
     ActionRecommendation,
+    BESSLoad,
+    DefrostLoad,
+    HVACLoad,
     OptimizationProblem,
     PriorityLevel,
+    ProductionBatchLoad,
     RecommendationCategory,
     RecommendationStatus,
     ScheduleResult,
@@ -85,7 +89,7 @@ class DecisionSupportEngine:
 
     def _evaluate_defrost_shift(
         self,
-        defrost: any,
+        defrost: DefrostLoad,
         index: int,
         problem: OptimizationProblem,
         schedule: ScheduleResult,
@@ -165,7 +169,7 @@ class DecisionSupportEngine:
 
     def _evaluate_batch_shift(
         self,
-        batch: any,
+        batch: ProductionBatchLoad,
         index: int,
         problem: OptimizationProblem,
         schedule: ScheduleResult,
@@ -247,7 +251,7 @@ class DecisionSupportEngine:
 
     def _evaluate_hvac_precooling(
         self,
-        hvac: any,
+        hvac: HVACLoad,
         index: int,
         problem: OptimizationProblem,
         schedule: ScheduleResult,
@@ -282,7 +286,11 @@ class DecisionSupportEngine:
         avg_peak_cooling = sum(opt_hvac_during_peak) / len(opt_hvac_during_peak) if opt_hvac_during_peak else 0.0
         avoided_kw = round(max(0.0, base_hvac_peak - avg_peak_cooling), 2)
 
-        est_savings = round(avoided_kw * 1.8 * 0.06 + 3.50, 2)
+        # Compute exact rate differential between peak hours and precooling hours
+        avg_peak_tariff = sum(problem.tariff_rates_eur_kwh[t] for t in peak_tariff_hours[:3]) / min(3, len(peak_tariff_hours))
+        avg_precool_tariff = sum(problem.tariff_rates_eur_kwh[t] for t in precool_hours) / len(precool_hours)
+        tariff_diff = max(0.02, avg_peak_tariff - avg_precool_tariff)
+        est_savings = round(max(1.0, avoided_kw * tariff_diff * len(opt_hvac_during_peak)), 2)
 
         desc_el = (
             f"Προ-ψύξη χώρου '{hvac.name}' κατά το παράθυρο {precool_window} σε χαμηλή χρέωση. "
@@ -317,7 +325,7 @@ class DecisionSupportEngine:
 
     def _evaluate_bess_action(
         self,
-        bess: any,
+        bess: BESSLoad,
         problem: OptimizationProblem,
         schedule: ScheduleResult,
     ) -> Optional[ActionRecommendation]:
@@ -335,7 +343,11 @@ class DecisionSupportEngine:
         dis_window = f"{dis_hours[0]:02d}:00-{(dis_hours[-1] + 1):02d}:00"
 
         peak_dis_kw = max(abs(net_schedule[t]) for t in dis_hours)
-        est_savings = round(schedule.savings_eur * 0.45 + 5.20, 2)
+        # Exact BESS arbitrage valuation from schedule power flows and spot tariffs
+        dis_revenue = sum(abs(net_schedule[t]) * problem.tariff_rates_eur_kwh[t] * problem.time_step_hours for t in dis_hours)
+        chg_cost = sum(abs(net_schedule[t]) * problem.tariff_rates_eur_kwh[t] * problem.time_step_hours for t in chg_hours)
+        arbitrage_savings = max(0.0, dis_revenue - chg_cost)
+        est_savings = round(max(1.0, arbitrage_savings), 2)
 
         desc_el = (
             f"Φόρτιση μπαταρίας {bess.name} στη νυχτερινή/οικονομική ζώνη {chg_window} "

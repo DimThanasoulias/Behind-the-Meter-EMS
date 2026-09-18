@@ -1,10 +1,13 @@
 """SciPy HiGHS Mixed-Integer Linear Programming (MILP) solver for Behind-the-Meter EMS.
 
 Solves the multi-period constrained load scheduling problem:
-    min sum_t ( C_t * P_total,t * delta_t + lambda * S_t )
+    min sum_t ( C_t * P_total,t * delta_t + lambda * S_t + M_comfort * (S_under,t + S_over,t) )
 Subject to:
-- Equipment operational constraints (defrost shift windows, batch oven contiguity,
-  HVAC comfort deadbands, BESS state-of-charge).
+- Equipment operational constraints:
+  * Defrost shift windows with contiguous duration enforcement
+  * Batch oven contiguity
+  * HVAC comfort deadbands with soft penalty slacks (guaranteeing feasibility on cold days)
+  * BESS state-of-charge dynamics
 - Maximum contracted capacity limit with penalty slack S_t.
 - Energy balance: P_total,t = P_base,t + P_defrost,t + P_hvac,t + P_batch,t + P_chg,t - P_dis,t.
 """
@@ -17,11 +20,7 @@ import numpy as np
 from scipy.optimize import Bounds, LinearConstraint, milp
 
 from optimization_engine.models import (
-    BESSLoad,
-    DefrostLoad,
-    HVACLoad,
     OptimizationProblem,
-    ProductionBatchLoad,
     ScheduleResult,
 )
 
@@ -33,6 +32,7 @@ class ConstrainedLoadSolver:
         self.problem = problem
         self.H = problem.horizon_hours
         self.dt = problem.time_step_hours
+        self.comfort_penalty = 100.0  # EUR/degC penalty for soft comfort bounds
 
     def solve(self) -> ScheduleResult:
         """Formulate and solve the MILP scheduling problem."""
@@ -53,6 +53,12 @@ class ConstrainedLoadSolver:
         for t in range(self.H):
             idx_slack = var_map[f"slack_{t}"]
             c[idx_slack] = self.problem.capacity_penalty_eur_per_kw
+
+        # Comfort violation penalties (soft bounds ensuring 100% solver feasibility)
+        for j in range(len(self.problem.hvac_loads)):
+            for t in range(self.H + 1):
+                c[var_map[f"hvac_slack_under_{j}_{t}"]] = self.comfort_penalty
+                c[var_map[f"hvac_slack_over_{j}_{t}"]] = self.comfort_penalty
 
         # Small cycle degradation cost for BESS to avoid unnecessary micro-cycling
         if self.problem.bess is not None:
@@ -104,28 +110,38 @@ class ConstrainedLoadSolver:
             var_map[f"slack_{t}"] = idx
             idx += 1
 
-        # Defrost binary indicators u_defrost[i, t] in {0, 1}
+        # Defrost variables
         for i, d in enumerate(self.problem.defrost_loads):
-            for t in range(self.H):
-                var_map[f"defrost_{i}_{t}"] = idx
-                idx += 1
+            if d.duration_hours > 1:
+                for t in range(self.H):
+                    var_map[f"defrost_start_{i}_{t}"] = idx
+                    idx += 1
+                    var_map[f"defrost_active_{i}_{t}"] = idx
+                    idx += 1
+            else:
+                for t in range(self.H):
+                    var_map[f"defrost_{i}_{t}"] = idx
+                    idx += 1
 
         # Batch start binaries u_start[k, t] and active binaries y_active[k, t]
-        for k, b in enumerate(self.problem.batch_loads):
+        for k, _b in enumerate(self.problem.batch_loads):
             for t in range(self.H):
                 var_map[f"batch_start_{k}_{t}"] = idx
                 idx += 1
                 var_map[f"batch_active_{k}_{t}"] = idx
                 idx += 1
 
-        # HVAC cooling power P_hvac[j, t] and room temperature T_hvac[j, t]
-        for j, h in enumerate(self.problem.hvac_loads):
+        # HVAC cooling power P_hvac[j, t], temperature state T[j, t], and soft slacks
+        for j, _h in enumerate(self.problem.hvac_loads):
             for t in range(self.H):
                 var_map[f"hvac_p_{j}_{t}"] = idx
                 idx += 1
-            # Temperature state at t=0..H
             for t in range(self.H + 1):
                 var_map[f"hvac_temp_{j}_{t}"] = idx
+                idx += 1
+                var_map[f"hvac_slack_under_{j}_{t}"] = idx
+                idx += 1
+                var_map[f"hvac_slack_over_{j}_{t}"] = idx
                 idx += 1
 
         # BESS charge/discharge powers and energy state
@@ -154,11 +170,22 @@ class ConstrainedLoadSolver:
         for i, d in enumerate(self.problem.defrost_loads):
             min_window = max(0, d.nominal_start_hour - d.max_shift_hours)
             max_window = min(self.H - 1, d.nominal_start_hour + d.max_shift_hours)
-            for t in range(self.H):
-                var_idx = var_map[f"defrost_{i}_{t}"]
-                integrality[var_idx] = 1
-                lb[var_idx] = 0.0
-                ub[var_idx] = 1.0 if (min_window <= t <= max_window) else 0.0
+            if d.duration_hours > 1:
+                for t in range(self.H):
+                    s_idx = var_map[f"defrost_start_{i}_{t}"]
+                    a_idx = var_map[f"defrost_active_{i}_{t}"]
+                    integrality[s_idx] = 1
+                    integrality[a_idx] = 1
+                    lb[s_idx] = 0.0
+                    ub[s_idx] = 1.0 if (min_window <= t <= max_window) else 0.0
+                    lb[a_idx] = 0.0
+                    ub[a_idx] = 1.0
+            else:
+                for t in range(self.H):
+                    var_idx = var_map[f"defrost_{i}_{t}"]
+                    integrality[var_idx] = 1
+                    lb[var_idx] = 0.0
+                    ub[var_idx] = 1.0 if (min_window <= t <= max_window) else 0.0
 
         for k, b in enumerate(self.problem.batch_loads):
             for t in range(self.H):
@@ -180,8 +207,12 @@ class ConstrainedLoadSolver:
             for t in range(self.H + 1):
                 t_idx = var_map[f"hvac_temp_{j}_{t}"]
                 integrality[t_idx] = 0
-                lb[t_idx] = h.temp_min_c
-                ub[t_idx] = h.temp_max_c
+                lb[t_idx] = -40.0  # Physical temperature bounds
+                ub[t_idx] = 80.0
+                lb[var_map[f"hvac_slack_under_{j}_{t}"]] = 0.0
+                ub[var_map[f"hvac_slack_under_{j}_{t}"]] = 50.0
+                lb[var_map[f"hvac_slack_over_{j}_{t}"]] = 0.0
+                ub[var_map[f"hvac_slack_over_{j}_{t}"]] = 50.0
 
         if self.problem.bess is not None:
             bess = self.problem.bess
@@ -209,12 +240,15 @@ class ConstrainedLoadSolver:
             row[var_map[f"p_total_{t}"]] = 1.0
 
             for i, d in enumerate(self.problem.defrost_loads):
-                row[var_map[f"defrost_{i}_{t}"]] = -d.power_kw
+                if d.duration_hours > 1:
+                    row[var_map[f"defrost_active_{i}_{t}"]] = -d.power_kw
+                else:
+                    row[var_map[f"defrost_{i}_{t}"]] = -d.power_kw
 
             for k, b in enumerate(self.problem.batch_loads):
                 row[var_map[f"batch_active_{k}_{t}"]] = -b.power_kw
 
-            for j, h in enumerate(self.problem.hvac_loads):
+            for j, _h in enumerate(self.problem.hvac_loads):
                 row[var_map[f"hvac_p_{j}_{t}"]] = -1.0
 
             if self.problem.bess is not None:
@@ -236,43 +270,75 @@ class ConstrainedLoadSolver:
             rhs.append(self.problem.contracted_capacity_kw)
 
     def _build_defrost_constraints(self, var_map, num_vars, A_rows, lhs, rhs):
-        """sum_t u_defrost[i, t] = duration_hours (if must_run)"""
+        """Enforces execution and contiguity for defrost cycles."""
         for i, d in enumerate(self.problem.defrost_loads):
-            if d.must_run:
+            if d.duration_hours > 1:
+                # Multi-hour defrost: start binary + contiguous active relation
+                row_start = np.zeros(num_vars)
+                for t in range(self.H):
+                    row_start[var_map[f"defrost_start_{i}_{t}"]] = 1.0
+                A_rows.append(row_start)
+                if d.must_run:
+                    lhs.append(1.0)
+                    rhs.append(1.0)
+                else:
+                    lhs.append(0.0)
+                    rhs.append(1.0)
+
+                for t in range(self.H):
+                    row_act = np.zeros(num_vars)
+                    row_act[var_map[f"defrost_active_{i}_{t}"]] = 1.0
+                    start_tau = max(0, t - d.duration_hours + 1)
+                    for tau in range(start_tau, t + 1):
+                        row_act[var_map[f"defrost_start_{i}_{tau}"]] = -1.0
+                    A_rows.append(row_act)
+                    lhs.append(0.0)
+                    rhs.append(0.0)
+            else:
+                # Single-hour defrost
                 row = np.zeros(num_vars)
                 for t in range(self.H):
                     row[var_map[f"defrost_{i}_{t}"]] = 1.0
                 A_rows.append(row)
-                lhs.append(float(d.duration_hours))
-                rhs.append(float(d.duration_hours))
+                if d.must_run:
+                    lhs.append(1.0)
+                    rhs.append(1.0)
+                else:
+                    lhs.append(0.0)
+                    rhs.append(1.0)
 
     def _build_batch_constraints(self, var_map, num_vars, A_rows, lhs, rhs):
         """1. sum_t u_start[k, t] = 1 (single batch start)
            2. y_active[k, t] = sum_{tau=t-D+1}^t u_start[k, tau] (contiguous duration)
         """
         for k, b in enumerate(self.problem.batch_loads):
+            row = np.zeros(num_vars)
+            for t in range(self.H):
+                row[var_map[f"batch_start_{k}_{t}"]] = 1.0
+            A_rows.append(row)
             if b.must_run:
-                row = np.zeros(num_vars)
-                for t in range(self.H):
-                    row[var_map[f"batch_start_{k}_{t}"]] = 1.0
-                A_rows.append(row)
                 lhs.append(1.0)
+                rhs.append(1.0)
+            else:
+                lhs.append(0.0)
                 rhs.append(1.0)
 
             # Contiguity relation
             for t in range(self.H):
-                row = np.zeros(num_vars)
-                row[var_map[f"batch_active_{k}_{t}"]] = 1.0
+                row_contig = np.zeros(num_vars)
+                row_contig[var_map[f"batch_active_{k}_{t}"]] = 1.0
                 start_tau = max(0, t - b.duration_hours + 1)
                 for tau in range(start_tau, t + 1):
-                    row[var_map[f"batch_start_{k}_{tau}"]] = -1.0
-                A_rows.append(row)
+                    row_contig[var_map[f"batch_start_{k}_{tau}"]] = -1.0
+                A_rows.append(row_contig)
                 lhs.append(0.0)
                 rhs.append(0.0)
 
     def _build_hvac_constraints(self, var_map, num_vars, A_rows, lhs, rhs):
         """T[t+1] = (1 - alpha) T[t] + alpha * T_amb[t] - beta * P_cooling[t]
-           Rewritten: T[t+1] - (1 - alpha) T[t] + beta * P_cooling[t] = alpha * T_amb[t]
+           Soft comfort bounds:
+             T[t] + S_under[t] >= T_min
+             T[t] - S_over[t] <= T_max
         """
         for j, h in enumerate(self.problem.hvac_loads):
             # Initial condition: T[0] = initial_temp_c
@@ -285,14 +351,32 @@ class ConstrainedLoadSolver:
             alpha = h.thermal_loss_factor
             beta = h.cooling_power_factor
             for t in range(self.H):
-                row = np.zeros(num_vars)
-                row[var_map[f"hvac_temp_{j}_{t+1}"]] = 1.0
-                row[var_map[f"hvac_temp_{j}_{t}"]] = -(1.0 - alpha)
-                row[var_map[f"hvac_p_{j}_{t}"]] = beta
-                A_rows.append(row)
+                row_dyn = np.zeros(num_vars)
+                row_dyn[var_map[f"hvac_temp_{j}_{t+1}"]] = 1.0
+                row_dyn[var_map[f"hvac_temp_{j}_{t}"]] = -(1.0 - alpha)
+                row_dyn[var_map[f"hvac_p_{j}_{t}"]] = beta
+                A_rows.append(row_dyn)
                 amb_t = h.ambient_temp_forecast[t] if t < len(h.ambient_temp_forecast) else 25.0
                 lhs.append(alpha * amb_t)
                 rhs.append(alpha * amb_t)
+
+            # Soft comfort bounds for all t=0..H
+            for t in range(self.H + 1):
+                # T[t] + S_under >= T_min  -->  T[t] + S_under in [T_min, inf)
+                row_under = np.zeros(num_vars)
+                row_under[var_map[f"hvac_temp_{j}_{t}"]] = 1.0
+                row_under[var_map[f"hvac_slack_under_{j}_{t}"]] = 1.0
+                A_rows.append(row_under)
+                lhs.append(h.temp_min_c)
+                rhs.append(np.inf)
+
+                # T[t] - S_over <= T_max  -->  T[t] - S_over in (-inf, T_max]
+                row_over = np.zeros(num_vars)
+                row_over[var_map[f"hvac_temp_{j}_{t}"]] = 1.0
+                row_over[var_map[f"hvac_slack_over_{j}_{t}"]] = -1.0
+                A_rows.append(row_over)
+                lhs.append(-np.inf)
+                rhs.append(h.temp_max_c)
 
     def _build_bess_constraints(self, var_map, num_vars, A_rows, lhs, rhs):
         """E[t+1] = E[t] + eta_chg * P_chg[t] * dt - (1 / eta_dis) * P_dis[t] * dt
@@ -351,7 +435,6 @@ class ConstrainedLoadSolver:
 
         # Add baseline HVAC (uncontrolled reactive cooling tracking ambient)
         for h in self.problem.hvac_loads:
-            # Baseline without pre-cooling: reactive cooling
             for t in range(self.H):
                 amb = h.ambient_temp_forecast[t] if t < len(h.ambient_temp_forecast) else 25.0
                 if amb > h.temp_max_c:
@@ -400,10 +483,16 @@ class ConstrainedLoadSolver:
         # Device schedules
         device_schedules: Dict[str, List[float]] = {}
         for i, d in enumerate(self.problem.defrost_loads):
-            device_schedules[d.name] = [
-                round(float(sol[var_map[f"defrost_{i}_{t}"]]) * d.power_kw, 2)
-                for t in range(self.H)
-            ]
+            if d.duration_hours > 1:
+                device_schedules[d.name] = [
+                    round(float(sol[var_map[f"defrost_active_{i}_{t}"]]) * d.power_kw, 2)
+                    for t in range(self.H)
+                ]
+            else:
+                device_schedules[d.name] = [
+                    round(float(sol[var_map[f"defrost_{i}_{t}"]]) * d.power_kw, 2)
+                    for t in range(self.H)
+                ]
 
         for k, b in enumerate(self.problem.batch_loads):
             device_schedules[b.name] = [

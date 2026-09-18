@@ -23,11 +23,11 @@ float HardwareCalibrator::correctAdcNonLinearity(float raw_mv) {
     }
 
     // Stage 1: Deadband region (< 120 mV)
-    // ESP32 SAR ADC under-reports low voltages due to input transistor threshold
+    // ESP32 SAR ADC under-reports low voltages due to input transistor threshold;
+    // apply concave expansion (V_corr >= V_raw) so suppressed signals are restored.
     if (raw_mv < 120.0f) {
-        // Polynomial expansion to recover suppressed low-amplitude AC signal
         float norm = raw_mv / 120.0f;
-        return 120.0f * (0.15f * norm + 0.85f * norm * norm);
+        return 120.0f * (1.25f * norm - 0.25f * norm * norm);
     }
 
     // Stage 2: Linear region (120 mV to 2600 mV)
