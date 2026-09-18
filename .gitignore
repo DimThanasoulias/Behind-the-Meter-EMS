@@ -45,3 +45,6 @@ Thumbs.db
 .env.local
 *.pem
 *.key
+
+# Internal agent working directory
+.agents/

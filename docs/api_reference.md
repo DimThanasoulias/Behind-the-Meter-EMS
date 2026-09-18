@@ -323,3 +323,102 @@ curl -X POST http://localhost:8000/api/v1/telemetry \
 
 ### Access Web Dashboard
 Open in your browser: `http://localhost:8000/dashboard`
+
+---
+
+## 8. Constrained Optimization & Closed-Loop Verification
+
+### `GET /api/v1/optimization/status`
+Returns optimization engine health, solver capabilities, and active recommendation counts.
+
+#### Response `200 OK`
+```json
+{
+  "status": "operational",
+  "solver_backend": "scipy_highs_milp",
+  "paradigm": "Measure -> Predict -> Optimize -> Act -> Verify",
+  "supported_constraints": [
+    "flexible_refrigeration_defrost",
+    "production_batch_deck_ovens",
+    "hvac_thermal_comfort_deadbands",
+    "bess_soc_and_power_limits",
+    "contracted_capacity_surcharge_avoidance"
+  ],
+  "active_recommendations_count": 2,
+  "verified_interventions_count": 1
+}
+```
+
+### `POST /api/v1/optimization/solve`
+Solves a rolling 24-hour MILP schedule using SciPy HiGHS and generates prioritized operational recommendations.
+
+#### Request Body
+```json
+{
+  "facility_id": "fac_bakery_01",
+  "contracted_capacity_kw": 35.0,
+  "include_defrost": true,
+  "include_batch_ovens": true,
+  "include_hvac": true,
+  "include_bess": true
+}
+```
+
+#### Response `200 OK`
+```json
+{
+  "status": "OPTIMAL",
+  "is_optimal": true,
+  "horizon_hours": 24,
+  "baseline_cost_eur": 184.50,
+  "optimized_cost_eur": 156.30,
+  "savings_eur": 28.20,
+  "savings_pct": 15.28,
+  "peak_baseline_kw": 38.2,
+  "peak_optimized_kw": 31.4,
+  "peak_reduction_kw": 6.8,
+  "solve_time_ms": 18.5,
+  "recommendations_count": 2,
+  "recommendations": [
+    {
+      "recommendation_id": "rec_defrost_a1b2c3d4",
+      "facility_id": "fac_bakery_01",
+      "category": "defrost_shift",
+      "priority": "high",
+      "title": "Shift Defrost: Refrigeration Defrost Rack A",
+      "description_el": "Μετατόπιση απόψυξης στις 16:00-17:00 (αντί 14:00-15:00). Αποφυγή αιχμής 6.8 kW. Όφελος: €14.20.",
+      "peak_load_avoided_kw": 6.8,
+      "estimated_savings_eur": 14.20,
+      "confidence_score": 0.94
+    }
+  ]
+}
+```
+
+### `POST /api/v1/optimization/verify`
+Certifies post-intervention measured telemetry against the counterfactual baseline.
+
+#### Request Body
+```json
+{
+  "recommendation_id": "rec_defrost_a1b2c3d4",
+  "actual_measured_kw": 24.5,
+  "counterfactual_baseline_kw": 31.3,
+  "tariff_eur_kwh": 0.245
+}
+```
+
+#### Response `200 OK`
+```json
+{
+  "verification_id": "ver_9f8e7d6c",
+  "recommendation_id": "rec_defrost_a1b2c3d4",
+  "facility_id": "fac_bakery_01",
+  "status": "success",
+  "actual_load_avoided_kw": 6.8,
+  "estimated_savings_eur": 14.20,
+  "actual_savings_eur": 14.20,
+  "accuracy_pct": 100.0,
+  "summary_el": "Επιτυχής παρέμβαση: Επιτεύχθηκε μείωση 6.8 kW. Πραγματικό οικονομικό όφελος: €14.20."
+}
+```

@@ -22,6 +22,7 @@ from backend.database.sqlite_store import get_store, init_db, seed_default_facil
 from backend.routes.dashboard import router as dashboard_router
 from backend.routes.facilities import router as facilities_router
 from backend.routes.market import router as market_router
+from backend.routes.optimization import router as optimization_router
 from backend.routes.telemetry import router as telemetry_router
 from backend.routes.viber import router as viber_router
 
@@ -73,6 +74,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
     app.include_router(facilities_router, prefix=settings.API_V1_STR)
     app.include_router(market_router, prefix=settings.API_V1_STR)
     app.include_router(viber_router, prefix=settings.API_V1_STR)
+    app.include_router(optimization_router, prefix=settings.API_V1_STR)
     app.include_router(dashboard_router)
 
     @app.get("/", tags=["system"])
